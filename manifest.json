@@ -1,0 +1,64 @@
+{
+  "manifest_version": 3,
+  "name": "Saladict MV3 Minimal Demo",
+  "description": "Minimal Chrome extension demo based on the archived Saladict project.",
+  "version": "0.1.0",
+  "permissions": [
+    "storage",
+    "tabs",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://translate.googleapis.com/*",
+    "https://fanyi.baidu.com/*",
+    "https://api.fanyi.baidu.com/*",
+    "https://fanyi-api.baidu.com/*",
+    "https://fanyi.caiyunapp.com/*",
+    "https://api.interpreter.caiyunai.com/*",
+    "https://cn.bing.com/*",
+    "https://www.collinsdictionary.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "browser-api.js",
+        "settings.js",
+        "content-panel.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "popup.html",
+        "popup.css",
+        "popup.js",
+        "browser-api.js",
+        "settings.js",
+        "hash-utils.js",
+        "assets/icons/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ],
+  "options_page": "options.html",
+  "action": {
+    "default_title": "Open Demo",
+    "default_popup": "popup.html"
+  },
+  "icons": {
+    "16": "assets/icons/icon-16.png",
+    "19": "assets/icons/icon-19.png",
+    "24": "assets/icons/icon-24.png",
+    "38": "assets/icons/icon-38.png",
+    "48": "assets/icons/icon-48.png",
+    "128": "assets/icons/icon-128.png"
+  }
+}

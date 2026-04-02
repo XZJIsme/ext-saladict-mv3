@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>设置</title>
+    <link rel="stylesheet" href="options.css">
+  </head>
+  <body>
+    <main class="options-shell">
+      <header class="options-header">
+        <img class="options-icon" src="assets/icons/icon-24.png" alt="">
+        <div>
+          <h1 class="options-title">设置</h1>
+          <p class="options-subtitle">当前提供翻译源选择，以及百度和彩云 token 设置。</p>
+        </div>
+      </header>
+
+      <section class="options-card">
+        <h2 class="section-title">启用哪些翻译源</h2>
+        <p class="section-help">至少保留一个翻译源。</p>
+        <form id="settings-form">
+          <div id="source-list" class="source-list"></div>
+          <section class="panel-setting-section">
+            <h3 class="credential-title">查词面板</h3>
+            <label class="source-item" for="default-pinned">
+              <input id="default-pinned" type="checkbox">
+              <span>页内查词面板出现时默认锁定</span>
+            </label>
+            <p class="section-help compact-help">锁定后，点击网页其他位置时面板不会自动关闭。</p>
+          </section>
+          <section id="credential-section" class="credential-section" hidden>
+            <p class="credential-notice">
+              请注意：使用第三方翻译服务 token 所产生的费用、调用次数与额度消耗，均由对应服务平台的账号规则决定，与本插件无关。为避免产生超出预期的消耗，建议您在使用前留意相关平台的计费说明与额度控制情况。
+            </p>
+
+            <div id="baidu-credential-group" class="credential-group" hidden>
+              <h3 class="credential-title">百度翻译 Token</h3>
+              <p class="credential-help">启用百度翻译后，请在这里填写 appid:key 格式的 token。</p>
+              <label class="credential-label" for="baidu-token">Token（appid:key）</label>
+              <input id="baidu-token" class="credential-input" type="password" autocomplete="off" placeholder="请输入 appid:key">
+            </div>
+
+            <div id="caiyun-credential-group" class="credential-group" hidden>
+              <h3 class="credential-title">彩云翻译 Token</h3>
+              <p class="credential-help">启用彩云翻译后，需要在这里填写 token。</p>
+              <label class="credential-label" for="caiyun-token">Token</label>
+              <input id="caiyun-token" class="credential-input" type="password" autocomplete="off">
+            </div>
+          </section>
+          <p id="form-message" class="form-message" aria-live="polite"></p>
+          <div class="form-actions">
+            <button id="save-btn" class="save-btn" type="submit" disabled>保存</button>
+          </div>
+        </form>
+      </section>
+    </main>
+
+    <script src="browser-api.js"></script>
+    <script src="settings.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>

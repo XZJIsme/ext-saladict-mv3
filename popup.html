@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Saladict 沙拉查词</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="popup-shell">
+      <header class="window-titlebar">
+        <div class="title-wrap">
+          <div class="title-texts">
+            <div class="window-title">Saladict 沙拉查词</div>
+          </div>
+        </div>
+        <div class="titlebar-actions">
+          <button id="pin-btn" class="pin-btn" type="button" aria-label="锁定">
+            <img src="assets/icons/pin-svgrepo-com.svg" alt="">
+          </button>
+          <button class="settings-btn" type="button">设置</button>
+          <button class="close-btn" type="button" aria-label="关闭">×</button>
+        </div>
+      </header>
+
+      <section class="window-body">
+        <section class="translator-panel">
+          <div class="group-box">
+            <label class="input-label" for="sentence-input">输入内容</label>
+            <div class="input-row">
+              <input
+                id="sentence-input"
+                class="sentence-input"
+                type="text"
+                placeholder="输入单词或句子后按回车或按按钮"
+                autocomplete="off"
+              >
+              <button
+                id="translate-btn"
+                class="translate-btn"
+                type="button"
+                aria-label="翻译"
+                title="翻译"
+              >
+                <img src="assets/icons/translate-button.svg" alt="">
+              </button>
+              <button
+                id="wordweb-btn"
+                class="translate-btn"
+                type="button"
+                aria-label="查词"
+                title="查词"
+              >
+                <img src="assets/icons/wordweb-svgrepo-com.svg" alt="">
+              </button>
+            </div>
+            <p id="hint-text" class="hint-text">正在加载翻译源设置...</p>
+          </div>
+
+          <div id="status-line" class="status-line">正在加载设置...</div>
+          <section id="results" class="results" aria-live="polite"></section>
+        </section>
+      </section>
+    </main>
+    <script src="browser-api.js"></script>
+    <script src="settings.js"></script>
+    <script src="hash-utils.js"></script>
+    <script src="popup.js"></script>
+  </body>
+  </html>
