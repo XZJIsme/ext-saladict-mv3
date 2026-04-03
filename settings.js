@@ -9,14 +9,14 @@ const AVAILABLE_SOURCES = [
 ]
 
 const DEFAULT_SETTINGS = {
-  version: 2,
+  version: 3,
   enabledSourceIds: AVAILABLE_SOURCES.map(source => source.id),
   defaultPinned: false,
   mode: {
-    direct: true,
+    direct: false,
   },
   pinMode: {
-    direct: true,
+    direct: false,
   },
 }
 
@@ -42,7 +42,7 @@ function normalizeSettings(rawSettings) {
   const enabledSourceIds = getValidSourceIds(rawSettings?.enabledSourceIds)
 
   return {
-    version: 2,
+    version: 3,
     enabledSourceIds:
       enabledSourceIds.length > 0
         ? enabledSourceIds
@@ -51,18 +51,9 @@ function normalizeSettings(rawSettings) {
       typeof rawSettings?.defaultPinned === "boolean"
         ? rawSettings.defaultPinned
         : DEFAULT_SETTINGS.defaultPinned,
-    mode: {
-      direct:
-        typeof rawSettings?.mode?.direct === "boolean"
-          ? rawSettings.mode.direct
-          : DEFAULT_SETTINGS.mode.direct,
-    },
-    pinMode: {
-      direct:
-        typeof rawSettings?.pinMode?.direct === "boolean"
-          ? rawSettings.pinMode.direct
-          : DEFAULT_SETTINGS.pinMode.direct,
-    },
+    // Selection auto-popup is intentionally disabled in this fork.
+    mode: { direct: false },
+    pinMode: { direct: false },
   }
 }
 

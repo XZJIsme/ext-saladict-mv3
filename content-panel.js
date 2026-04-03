@@ -32,7 +32,6 @@ if (window.top === window) {
     }
 
     document.addEventListener("mousedown", handleDocumentMouseDown, true)
-    document.addEventListener("mouseup", handleDocumentMouseUp, true)
     window.addEventListener("mousemove", handleGlobalMouseMove, true)
     window.addEventListener("mouseup", handleGlobalMouseUp, true)
     window.addEventListener("message", handlePanelMessage)
@@ -94,29 +93,6 @@ if (window.top === window) {
     }
 
     hidePanel()
-  }
-
-  function handleDocumentMouseUp() {
-    const selectionText = getSelectionText()
-    if (!selectionText) {
-      return
-    }
-
-    const shouldUsePinMode = panelState.isVisible && panelState.isPinned
-    const shouldSearch = shouldUsePinMode
-      ? panelState.settings.pinMode.direct
-      : panelState.settings.mode.direct
-
-    if (!shouldSearch) {
-      return
-    }
-
-    showPanel({
-      text: selectionText,
-      pinned: panelState.isVisible
-        ? panelState.isPinned
-        : panelState.settings.defaultPinned,
-    })
   }
 
   function showPanel({ text, pinned, snapshot }) {
@@ -290,30 +266,6 @@ if (window.top === window) {
         payload: { text: panelState.pendingSearchText },
       })
     }
-  }
-
-  function getSelectionText() {
-    const selection = window.getSelection()
-    const text = selection?.toString().trim() || ""
-    if (!text) {
-      return ""
-    }
-
-    const anchorNode = selection?.anchorNode
-    const anchorElement =
-      anchorNode && anchorNode.nodeType === Node.ELEMENT_NODE
-        ? anchorNode
-        : anchorNode?.parentElement
-
-    if (
-      anchorElement?.closest(
-        "input, textarea, [contenteditable=''], [contenteditable='true']"
-      )
-    ) {
-      return ""
-    }
-
-    return text
   }
 
   function movePanelTo(left, top) {

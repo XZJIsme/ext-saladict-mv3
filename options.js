@@ -5,18 +5,12 @@ const formMessage = document.querySelector("#form-message")
 const credentialSection = document.querySelector("#credential-section")
 const baiduCredentialGroup = document.querySelector("#baidu-credential-group")
 const caiyunCredentialGroup = document.querySelector("#caiyun-credential-group")
-const defaultPinnedInput = document.querySelector("#default-pinned")
 const baiduTokenInput = document.querySelector("#baidu-token")
 const caiyunTokenInput = document.querySelector("#caiyun-token")
 
 let savedOptionsData = null
 
 initOptionsPage()
-
-defaultPinnedInput?.addEventListener("change", () => {
-  showMessage("", "")
-  updateSaveState()
-})
 
 baiduTokenInput?.addEventListener("input", () => {
   showMessage("", "")
@@ -91,7 +85,6 @@ function renderSourceList(settings) {
 }
 
 function renderCredentials(credentials) {
-  defaultPinnedInput.checked = savedOptionsData.settings.defaultPinned
   baiduTokenInput.value = credentials.baidu.token
   caiyunTokenInput.value = credentials.caiyun.token
   syncCredentialSection()
@@ -108,7 +101,6 @@ function getDraftOptionsData() {
   return {
     settings: window.SaladictSettings.normalizeSettings({
       enabledSourceIds: getCheckedIds(),
-      defaultPinned: defaultPinnedInput.checked,
     }),
     credentials: window.SaladictSettings.normalizeCredentials({
       baidu: {

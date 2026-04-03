@@ -16,8 +16,7 @@
     "https://fanyi-api.baidu.com/*",
     "https://fanyi.caiyunapp.com/*",
     "https://api.interpreter.caiyunai.com/*",
-    "https://cn.bing.com/*",
-    "https://www.collinsdictionary.com/*"
+    "https://dict.youdao.com/*"
   ],
   "content_scripts": [
     {

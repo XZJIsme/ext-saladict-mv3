@@ -10,7 +10,6 @@ const {
   openOptionsPage,
   openUrl,
   queryTabs,
-  removeTab,
   executeScript,
   sendMessageToTab,
 } = window.SaladictBrowserApi
@@ -92,22 +91,13 @@ const TRANSLATION_SOURCE_CONFIGS = [
 
 const DICTIONARY_SOURCE_CONFIGS = [
   {
-    id: "cobuild",
-    label: "柯林斯词典",
+    id: "collins_youdao",
+    label: "柯林斯英汉双解",
     href: text =>
-      `https://www.collinsdictionary.com/dictionary/english/${encodeURIComponent(
-        String(text || "").replace(/\s+/g, "-").trim()
-      )}`,
-    lookup: lookupWithCobuild,
-  },
-  {
-    id: "bing",
-    label: "Bing 词典",
-    href: text =>
-      `https://cn.bing.com/dict/search?q=${encodeURIComponent(
+      `https://dict.youdao.com/w/${encodeURIComponent(
         String(text || "").replace(/\s+/g, " ").trim()
       )}`,
-    lookup: lookupWithBing,
+    lookup: lookupWithYoudaoCollins,
   },
 ]
 
@@ -966,69 +956,13 @@ async function translateWithBaidu(text, targetMode, credential) {
   }
 }
 
-async function lookupWithBing(text) {
+async function lookupWithYoudaoCollins(text) {
   const normalizedText = text.replace(/\s+/g, " ").trim()
-  const encodedText = encodeURIComponent(normalizedText)
-  const candidates = [
-    "https://cn.bing.com/dict/clientsearch?mkt=zh-CN&setLang=zh&form=BDVEHC&ClientVer=BDDTV3.5.1.4320&q=" +
-      encodedText,
-    `https://cn.bing.com/dict/search?q=${encodedText}`,
-  ]
+  const doc = await requestDirtyDocument(
+    "https://dict.youdao.com/w/" + encodeURIComponent(normalizedText)
+  )
 
-  for (const url of candidates) {
-    const doc = await requestDirtyDocument(url)
-    const parsed = parseBingDocument(doc, normalizedText)
-    if (parsed) {
-      return parsed
-    }
-  }
-
-  return {
-    state: "unavailable",
-    text: "Bing 词典没有找到可用结果。",
-    meta: "",
-  }
-}
-
-async function lookupWithCobuild(text) {
-  const normalizedText = text.replace(/\s+/g, " ").trim()
-  const slug = encodeURIComponent(normalizedText.replace(/\s+/g, "-"))
-  const candidates = [
-    `https://www.collinsdictionary.com/dictionary/english/${slug}`,
-    `https://www.collinsdictionary.com/zh/dictionary/english/${slug}`,
-  ]
-
-  let lastFailureText = ""
-
-  for (const url of candidates) {
-    let tabId = null
-    try {
-      const tab = await openUrl(url, false)
-      tabId = tab?.id ?? null
-
-      if (!tabId) {
-        throw new Error("无法创建临时词典标签页。")
-      }
-
-      return await waitForCobuildResult(tabId, normalizedText)
-    } catch (error) {
-      lastFailureText =
-        error instanceof Error ? error.message : "柯林斯词典当前不可用。"
-    } finally {
-      if (tabId) {
-        try {
-          await removeTab(tabId)
-        } catch (error) {
-        }
-      }
-    }
-  }
-
-  return {
-    state: "unavailable",
-    text: lastFailureText || "柯林斯词典当前不可用。",
-    meta: "",
-  }
+  return parseYoudaoCollinsDocument(doc, normalizedText)
 }
 
 function unavailableResult(text) {
@@ -1240,373 +1174,88 @@ function playAudioUrl(url) {
   }
 }
 
-function extractBingMp3FromOnclick(node) {
-  const onclick = String(node?.getAttribute?.("onclick") || "")
-  const match = onclick.match(/https?:\/\/[^'"\s)]+\.mp3/i)
-  return match?.[0] || ""
-}
-
-function sleep(ms) {
-  return new Promise(resolve => {
-    window.setTimeout(resolve, ms)
-  })
-}
-
-async function waitForCobuildResult(tabId, fallbackTitle) {
-  for (let attempt = 0; attempt < 12; attempt += 1) {
-    await sleep(attempt === 0 ? 1500 : 1000)
-
-    let payload = null
-    try {
-      const results = await executeScript({
-        target: { tabId },
-        func: extractCobuildFromPage,
-        args: [fallbackTitle],
-      })
-      payload = results?.[0]?.result || null
-    } catch (error) {
-      if (attempt === 11) {
-        throw error
-      }
-      continue
-    }
-
-    if (!payload) {
-      continue
-    }
-
-    if (payload.status === "challenge") {
-      continue
-    }
-
-    if (payload.status === "blocked") {
-      return {
-        state: "unavailable",
-        text: "柯林斯词典当前要求通过站点校验，扩展暂时无法直接抓取。",
-        meta: "",
-      }
-    }
-
-    if (payload.status === "no-result") {
-      return {
-        state: "unavailable",
-        text: `柯林斯词典没有找到 “${fallbackTitle}” 的结果。`,
-        meta: "",
-      }
-    }
-
-    if (payload.status === "ok") {
-      return {
-        state: "ok",
-        text: payload.text || fallbackTitle,
-        meta: payload.meta || "柯林斯词典",
-        audio: normalizeAudioMap(payload.audio),
-      }
-    }
-  }
-
-  return {
-    state: "unavailable",
-    text: "柯林斯词典页面校验超时，请稍后再试。",
-    meta: "",
-  }
-}
-
-function extractCobuildFromPage(fallbackTitle) {
-  function cleanLineText(value) {
-    return String(value || "")
-      .replace(/\u00a0/g, " ")
-      .split(/\r?\n/)
-      .map(line => line.trim())
-      .filter(Boolean)
-      .join("\n")
-  }
-
-  function absolutize(url) {
-    const raw = String(url || "").trim()
-    if (!raw) {
-      return ""
-    }
-
-    try {
-      return new URL(raw, window.location.origin).href
-    } catch (error) {
-      return raw
-    }
-  }
-
-  function getAudio(section) {
-    const button = section.querySelector(".pron .audio_play_button")
-    return absolutize(button?.getAttribute("data-src-mp3"))
-  }
-
-  const pageTitle = String(document.title || "").trim()
-  const bodyText = cleanLineText(document.body?.innerText || "")
-
-  if (
-    /Just a moment/i.test(pageTitle) ||
-    /Enable JavaScript and cookies to continue/i.test(bodyText)
-  ) {
-    return { status: "challenge" }
-  }
-
-  if (/Attention Required|Cloudflare/i.test(pageTitle)) {
-    return { status: "blocked" }
-  }
-
-  const sections = Array.from(document.querySelectorAll("[data-type-block]"))
-    .filter(section => {
-      const type = String(section.getAttribute("data-type-block") || "")
-      return (
-        type &&
-        type !== "Video" &&
-        type !== "Trends" &&
-        type !== "英语词汇表" &&
-        type !== "趋势"
-      )
-    })
-    .map(section => {
-      const type = String(section.getAttribute("data-type-block") || "")
-      const title = String(section.getAttribute("data-title-block") || "")
-      const num = String(section.getAttribute("data-num-block") || "")
-      const heading = [type, title, num].filter(Boolean).join(" ")
-      const text = cleanLineText(section.innerText || "")
-      const audio = getAudio(section)
-
-      return {
-        type,
-        title,
-        num,
-        heading,
-        text,
-        audio,
-      }
-    })
-    .filter(section => section.text)
-
-  if (sections.length === 0) {
-    if (/no results|did you mean|not found/i.test(bodyText)) {
-      return { status: "no-result" }
-    }
-
-    return { status: "blocked" }
-  }
-
-  const limitedSections = sections.slice(0, 4)
-  const text = limitedSections
-    .map(section => {
-      if (section.heading && !section.text.startsWith(section.heading)) {
-        return `${section.heading}\n${section.text}`
-      }
-      return section.text
-    })
-    .join("\n\n")
-    .slice(0, 4000)
-
-  const audio = {}
-  limitedSections.forEach(section => {
-    if (!section.audio) {
-      return
-    }
-
-    if (section.type === "American") {
-      audio.us = section.audio
-      return
-    }
-
-    if (section.type === "English" || section.type === "Learner") {
-      audio.uk = section.audio
-    }
-  })
-
-  const metaSections = limitedSections
-    .map(section => section.heading || section.type)
-    .filter(Boolean)
-
-  return {
-    status: "ok",
-    text: text || fallbackTitle,
-    meta:
-      metaSections.length > 0
-        ? `柯林斯词典：${metaSections.join(" / ")}`
-        : "柯林斯词典",
-    audio,
-  }
-}
-
-function normalizeBingMediaUrl(url) {
-  const raw = String(url || "").trim()
-  if (!raw) {
-    return ""
-  }
-
-  if (/^https?:\/\//i.test(raw)) {
-    return raw
-  }
-
-  if (raw.startsWith("//")) {
-    return `https:${raw}`
-  }
-
-  if (raw.startsWith("/")) {
-    return `https://cn.bing.com${raw}`
-  }
-
-  return raw
-}
-
-function parseBingLexResult(doc) {
-  const title = getNodeText(doc.querySelector(".client_def_hd_hd"))
-  if (!title) {
+function parseYoudaoCollinsDocument(doc, fallbackTitle) {
+  const typo = doc.querySelector(".error-typo")
+  if (typo) {
     return {
       state: "unavailable",
-      text: "Bing 词典没有返回词典释义。",
+      text: `柯林斯英汉双解没有找到 “${fallbackTitle}” 的结果。`,
       meta: "",
     }
   }
 
-  const phsym = Array.from(doc.querySelectorAll(".client_def_hd_pn_list"))
-    .map(item => {
-      const lang = getNodeText(item.querySelector(".client_def_hd_pn"))
-      const pron = extractBingMp3FromOnclick(item.querySelector(".client_aud_o"))
-      return { lang, pron }
-    })
-    .filter(item => item.lang || item.pron)
-
   const audio = {}
-  phsym.forEach(item => {
-    if (/us|美/i.test(item.lang) && item.pron) {
-      audio.us = item.pron
-    } else if (/uk|英/i.test(item.lang) && item.pron) {
-      audio.uk = item.pron
+  doc.querySelectorAll(".baav .pronounce").forEach(item => {
+    const phsym = getNodeText(item)
+    const voice = item.querySelector(".dictvoice")
+    const rel = String(voice?.getAttribute("data-rel") || "")
+    if (!rel) {
+      return
+    }
+
+    const url = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(rel)}`
+    if (phsym.includes("英")) {
+      audio.uk = url
+    } else if (phsym.includes("美")) {
+      audio.us = url
     }
   })
 
-  const defs = Array.from(doc.querySelectorAll(".client_def_bar"))
-    .map(item => {
-      const pos = getNodeText(item.querySelector(".client_def_title_bar"))
-      const def = getNodeText(item.querySelector(".client_def_list"))
-      if (!pos && !def) {
-        return ""
+  const containers = Array.from(doc.querySelectorAll("#collinsResult .wt-container"))
+    .map(container => {
+      const clone = container.cloneNode(true)
+      const titleNode = clone.querySelector(":scope > .title.trans-tip")
+      let title = ""
+      if (titleNode) {
+        titleNode.querySelector(".do-detail")?.remove()
+        title = getNodeText(titleNode)
+        titleNode.remove()
       }
-      return pos ? `${pos} ${def}`.trim() : def
-    })
-    .filter(Boolean)
-    .slice(0, 8)
 
-  const inflections = Array.from(doc.querySelectorAll(".client_word_change_word"))
-    .map(getNodeText)
-    .filter(Boolean)
-    .slice(0, 8)
-
-  const sentences = Array.from(doc.querySelectorAll(".client_sentence_list"))
-    .map(item => {
-      const en = getNodeText(item.querySelector(".client_sen_en"))
-      const chs = getNodeText(item.querySelector(".client_sen_cn"))
-      const source = getNodeText(item.querySelector(".client_sentence_list_link"))
-      if (!en && !chs) {
-        return ""
+      const starNode = clone.querySelector(".star")
+      let stars = ""
+      if (starNode) {
+        const match = String(starNode.className || "").match(/star(\d+)/)
+        if (match) {
+          stars = "★".repeat(Number(match[1]))
+        }
       }
-      const line = chs ? `${en}\n${chs}`.trim() : en
-      return source ? `${line}\n来源：${source}` : line
-    })
-    .filter(Boolean)
-    .slice(0, 3)
 
-  const sections = [title]
-  if (defs.length > 0) {
-    sections.push(defs.map(def => `- ${def}`).join("\n"))
-  }
-  if (inflections.length > 0) {
-    sections.push(`词形变化：${inflections.join(" / ")}`)
-  }
-  if (sentences.length > 0) {
-    sections.push(`例句：\n${sentences.join("\n\n")}`)
-  }
-
-  const pronunciationText = phsym
-    .map(item => item.lang)
-    .filter(Boolean)
-    .join(" / ")
-
-  return {
-    state: "ok",
-    text: sections.join("\n\n"),
-    meta: pronunciationText ? `音标：${pronunciationText}` : "Bing 词典释义",
-    audio: normalizeAudioMap(audio),
-  }
-}
-
-function parseBingSentenceFallbackResult(doc, fallbackTitle) {
-  const sentences = Array.from(doc.querySelectorAll(".client_sentence_list"))
-    .map(item => {
-      const en = getNodeText(item.querySelector(".client_sen_en"))
-      const chs = getNodeText(item.querySelector(".client_sen_cn"))
-      const source = getNodeText(item.querySelector(".client_sentence_list_link"))
-      const audio = normalizeBingMediaUrl(
-        item.querySelector(".client_bdsen_audio")?.getAttribute("data-mp3link")
-      )
-
-      if (!en && !chs) {
+      const content = getNodeText(clone)
+      if (!content) {
         return null
       }
 
-      const lines = []
-      if (en) {
-        lines.push(en)
-      }
-      if (chs) {
-        lines.push(chs)
-      }
-      if (source) {
-        lines.push(`来源：${source}`)
-      }
-
       return {
-        text: lines.join("\n"),
-        audio,
+        title,
+        stars,
+        content,
       }
     })
     .filter(Boolean)
-    .slice(0, 5)
 
-  if (sentences.length === 0) {
-    return null
+  if (containers.length === 0) {
+    return {
+      state: "unavailable",
+      text: "当前有道页里没有返回“柯林斯英汉双解”版块。",
+      meta: "",
+    }
   }
 
-  const firstAudio = sentences.find(item => item.audio)?.audio
-  const sections = []
-  if (fallbackTitle) {
-    sections.push(fallbackTitle)
-  }
-  sections.push(`例句：\n${sentences.map(item => item.text).join("\n\n")}`)
+  const text = containers
+    .map(item => {
+      const heading = [item.title, item.stars].filter(Boolean).join(" ")
+      return heading ? `${heading}\n${item.content}` : item.content
+    })
+    .join("\n\n")
+    .slice(0, 5000)
 
   return {
     state: "ok",
-    text: sections.join("\n\n"),
-    meta: "Bing 双语例句",
-    audio: firstAudio ? normalizeAudioMap({ us: firstAudio }) : undefined,
+    text,
+    meta: "有道词典中的柯林斯英汉双解",
+    audio: normalizeAudioMap(audio),
   }
-}
-
-function parseBingDocument(doc, fallbackTitle) {
-  if (doc.querySelector(".client_def_hd_hd")) {
-    return parseBingLexResult(doc)
-  }
-
-  if (doc.querySelector(".client_trans_head")) {
-    return parseBingMachineResult(doc)
-  }
-
-  if (doc.querySelector(".client_do_you_mean_title_bar")) {
-    return parseBingRelatedResult(doc)
-  }
-
-  if (doc.querySelector(".client_sentence_list")) {
-    return parseBingSentenceFallbackResult(doc, fallbackTitle)
-  }
-
-  return null
 }
 
 function requestDirtyDocument(url) {
@@ -1639,60 +1288,6 @@ function requestDirtyDocument(url) {
 
     xhr.send()
   })
-}
-
-function parseBingMachineResult(doc) {
-  const mt = getNodeText(doc.querySelector(".client_sen_cn"))
-  if (!mt) {
-    return {
-      state: "unavailable",
-      text: "Bing 没有返回机器翻译结果。",
-      meta: "",
-    }
-  }
-
-  return {
-    state: "ok",
-    text: mt,
-    meta: "Bing 机器翻译结果",
-  }
-}
-
-function parseBingRelatedResult(doc) {
-  const title = getNodeText(doc.querySelector(".client_do_you_mean_title_bar"))
-  const blocks = []
-
-  doc.querySelectorAll(".client_do_you_mean_area").forEach(area => {
-    const groupTitle = getNodeText(area.querySelector(".client_do_you_mean_title"))
-    const meanings = Array.from(area.querySelectorAll(".client_do_you_mean_list"))
-      .map(item => {
-        const word = getNodeText(item.querySelector(".client_do_you_mean_list_word"))
-        const def = getNodeText(item.querySelector(".client_do_you_mean_list_def"))
-        if (!word && !def) {
-          return ""
-        }
-        return def ? `- ${word}：${def}` : `- ${word}`
-      })
-      .filter(Boolean)
-
-    if (meanings.length > 0) {
-      blocks.push(`${groupTitle || "相关词"}\n${meanings.join("\n")}`)
-    }
-  })
-
-  if (blocks.length === 0) {
-    return {
-      state: "unavailable",
-      text: "Bing 没有返回相关词结果。",
-      meta: "",
-    }
-  }
-
-  return {
-    state: "ok",
-    text: `${title || "相关词推荐"}\n\n${blocks.join("\n\n")}`,
-    meta: "Bing 相关词推荐",
-  }
 }
 
 function escapeHtml(value) {
