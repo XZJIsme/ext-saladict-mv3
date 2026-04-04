@@ -36,6 +36,9 @@ let restoredSnapshotMode = "auto"
 let activeAudioTrigger = null
 let activeAudioPlayer = null
 let activeAudioObjectUrl = ""
+let temporaryEnabledTranslationSourceIds = new Set()
+let activeTranslationEntriesSnapshot = []
+let activeTranslationResultsBySourceId = new Map()
 const collinsEntrySelections = new Map()
 
 function setNodeText(node, text) {
@@ -215,6 +218,19 @@ results?.addEventListener("click", event => {
     return
   }
 
+  const tempEnableBtn = event.target.closest?.(
+    "[data-action='temporary-enable-source']"
+  )
+  if (tempEnableBtn) {
+    const sourceId = tempEnableBtn.getAttribute("data-source-id")
+    if (!sourceId) {
+      return
+    }
+
+    enableTranslationSourceTemporarily(sourceId)
+    return
+  }
+
   const speakerBtn = event.target.closest?.(".saladict-Speaker[data-audio-url]")
   if (speakerBtn) {
     const url = speakerBtn.getAttribute("data-audio-url")
@@ -352,16 +368,25 @@ async function runTranslations(text) {
   const runId = ++currentRunId
   currentViewMode = "translate"
   lastRenderedText = text
-
-  if (activeTranslationSourceConfigs.length === 0) {
-    setNodeText(statusLine, "当前没有可用翻译源，请先到设置页启用。")
-    renderCards(text, "translate")
-    return
-  }
+  activeTranslationEntriesSnapshot = getTranslationSourceEntries().map(
+    entry => ({
+      source: entry.source,
+      enabled: entry.enabled,
+    })
+  )
+  activeTranslationResultsBySourceId = new Map()
+  const enabledTranslationEntries = activeTranslationEntriesSnapshot.filter(
+    entry => entry.enabled
+  )
+  activeTranslationSourceConfigs = enabledTranslationEntries.map(
+    entry => entry.source
+  )
 
   if (!text) {
     currentViewMode = "idle"
     lastRenderedText = ""
+    activeTranslationEntriesSnapshot = []
+    activeTranslationResultsBySourceId = new Map()
     setNodeText(statusLine, "请先输入要翻译的句子。")
     renderCards("", "idle")
     return
@@ -370,25 +395,48 @@ async function runTranslations(text) {
   const targetMode = decideTargetMode(text)
   lastTargetMode = targetMode
 
+  if (enabledTranslationEntries.length === 0) {
+    setNodeText(
+      statusLine,
+      "当前没有启用的翻译源，可以先临时启用一个源。"
+    )
+    renderCards(
+      text,
+      "translate",
+      getTranslationSettledResults(activeTranslationEntriesSnapshot),
+      activeTranslationEntriesSnapshot
+    )
+    return
+  }
+
   setNodeText(
     statusLine,
-    `正在请求 ${activeTranslationSourceConfigs.length} 个翻译源，目标语言：${targetMode === "en" ? "英语" : "中文"}...`
+    `正在请求 ${enabledTranslationEntries.length} 个翻译源，目标语言：${targetMode === "en" ? "英语" : "中文"}...`
   )
   const states = new Map()
-  activeTranslationSourceConfigs.forEach(source => {
-    states.set(source.id, {
+  enabledTranslationEntries.forEach(entry => {
+    const source = entry.source
+    const loadingResult = {
       state: "loading",
       text: "请求中...",
       meta: "",
-    })
+    }
+    states.set(source.id, loadingResult)
+    activeTranslationResultsBySourceId.set(source.id, loadingResult)
   })
-  renderCards(text, "translate", toSettledResults(states, activeTranslationSourceConfigs))
+  renderCards(
+    text,
+    "translate",
+    getTranslationSettledResults(activeTranslationEntriesSnapshot),
+    activeTranslationEntriesSnapshot
+  )
 
   let finishedCount = 0
-  const totalCount = activeTranslationSourceConfigs.length
+  const totalCount = enabledTranslationEntries.length
 
   await Promise.all(
-    activeTranslationSourceConfigs.map(async source => {
+    enabledTranslationEntries.map(async entry => {
+      const source = entry.source
       let result
       try {
         result = await source.translate(text, targetMode)
@@ -405,6 +453,7 @@ async function runTranslations(text) {
       }
 
       states.set(source.id, result)
+      activeTranslationResultsBySourceId.set(source.id, result)
       finishedCount += 1
       setNodeText(
         statusLine,
@@ -413,7 +462,8 @@ async function runTranslations(text) {
       renderCards(
         text,
         "translate",
-        toSettledResults(states, activeTranslationSourceConfigs)
+        getTranslationSettledResults(activeTranslationEntriesSnapshot),
+        activeTranslationEntriesSnapshot
       )
     })
   )
@@ -513,7 +563,12 @@ function runSearch(text, requestedMode = "auto") {
   runTranslations(text)
 }
 
-function renderCards(text, mode = currentViewMode, settled = []) {
+function renderCards(
+  text,
+  mode = currentViewMode,
+  settled = [],
+  translationEntries = null
+) {
   if (!results) {
     return
   }
@@ -530,65 +585,129 @@ function renderCards(text, mode = currentViewMode, settled = []) {
   const activeConfigs = getActiveConfigsForMode(mode)
   const states = new Map(settled.map(item => [item.source.id, item.result]))
 
-  if (mode === "translate" && activeConfigs.length === 0) {
-    results.innerHTML = `
-      <article class="result-card is-unavailable">
-        <div class="result-head">
-          <div class="result-title">未启用翻译源</div>
-        </div>
-        <div class="result-body">请点击右上角“设置”，至少启用一个翻译源。</div>
-      </article>
-    `
+  if (mode === "translate") {
+    const visibleTranslationEntries =
+      Array.isArray(translationEntries) && translationEntries.length > 0
+        ? translationEntries
+        : getTranslationSourceEntries()
+
+    results.innerHTML = visibleTranslationEntries
+      .map(entry => {
+        const source = entry.source
+        const isEnabled = entry.enabled
+        const result = isEnabled
+          ? states.get(source.id) || {
+              state: "idle",
+              text: "",
+              meta: "",
+            }
+          : {
+              state: "unavailable",
+              text: "当前未启用此翻译源。",
+              meta: "",
+            }
+        const isCollapsed = isEnabled && collapsedSourceIds.has(source.id)
+        const bodyMarkup = isCollapsed ? "" : renderResultBody(source, result)
+        const metaMarkup = isCollapsed || !result.meta
+          ? ""
+          : `<div class="result-meta">${escapeHtml(result.meta)}</div>`
+        const hasContent = Boolean(bodyMarkup) || Boolean(result.meta)
+
+        const klass =
+          result.state === "loading"
+            ? "result-card is-loading"
+            : result.state === "unavailable"
+            ? isEnabled
+              ? "result-card is-unavailable"
+              : "result-card is-unavailable is-temporary-source"
+            : result.state === "error"
+            ? "result-card is-error"
+            : "result-card"
+        const cardClass = isCollapsed ? `${klass} is-collapsed` : klass
+        const collapseLabel = isCollapsed ? "展开" : "收起"
+        const showCollapseButton = isEnabled && (isCollapsed || hasContent)
+        const isEmptyExpanded = !isCollapsed && !bodyMarkup && !result.meta
+        const cardClassWithEmpty = isEmptyExpanded
+          ? `${cardClass} is-empty`
+          : cardClass
+        const audioActions = isEnabled
+          ? buildAudioActions(result.audio, result)
+          : ""
+        const tempEnableAction = isEnabled
+          ? ""
+          : `<button class="result-link result-link--primary" type="button" data-action="temporary-enable-source" data-source-id="${escapeAttr(source.id)}">临时启用此源</button>`
+
+        return `
+          <article class="${cardClassWithEmpty}">
+            <div class="result-head">
+              <div class="result-title">${escapeHtml(source.label)}</div>
+              <div class="result-actions">
+                ${audioActions}
+                ${tempEnableAction}
+                ${showCollapseButton
+                  ? `<button class="result-link" type="button" data-action="toggle-collapse" data-source-id="${escapeAttr(source.id)}">${collapseLabel}</button>`
+                  : ""}
+                <button class="result-link" type="button" data-open-url="${escapeAttr(source.href(text || "", lastTargetMode))}">打开网站</button>
+              </div>
+            </div>
+            ${bodyMarkup}
+            ${metaMarkup}
+          </article>
+        `
+      })
+      .join("")
     return
   }
 
-  results.innerHTML = activeConfigs.map(source => {
-    const result = states.get(source.id) || {
-      state: "idle",
-      text: "",
-      meta: "",
-    }
-    const isCollapsed = collapsedSourceIds.has(source.id)
-    const bodyMarkup = isCollapsed ? "" : renderResultBody(source, result)
-    const metaMarkup = isCollapsed || !result.meta
-      ? ""
-      : `<div class="result-meta">${escapeHtml(result.meta)}</div>`
-    const hasContent = Boolean(bodyMarkup) || Boolean(result.meta)
+  results.innerHTML = activeConfigs
+    .map(source => {
+      const result = states.get(source.id) || {
+        state: "idle",
+        text: "",
+        meta: "",
+      }
+      const isCollapsed = collapsedSourceIds.has(source.id)
+      const bodyMarkup = isCollapsed ? "" : renderResultBody(source, result)
+      const metaMarkup = isCollapsed || !result.meta
+        ? ""
+        : `<div class="result-meta">${escapeHtml(result.meta)}</div>`
+      const hasContent = Boolean(bodyMarkup) || Boolean(result.meta)
 
-    const klass =
-      result.state === "loading"
-        ? "result-card is-loading"
-        : result.state === "unavailable"
-        ? "result-card is-unavailable"
-        : result.state === "error"
-        ? "result-card is-error"
-        : "result-card"
-    const cardClass = isCollapsed ? `${klass} is-collapsed` : klass
-    const collapseLabel = isCollapsed ? "展开" : "收起"
-    const showCollapseButton = isCollapsed || hasContent
-    const isEmptyExpanded = !isCollapsed && !bodyMarkup && !result.meta
-    const cardClassWithEmpty = isEmptyExpanded
-      ? `${cardClass} is-empty`
-      : cardClass
-    const audioActions = buildAudioActions(result.audio, result)
+      const klass =
+        result.state === "loading"
+          ? "result-card is-loading"
+          : result.state === "unavailable"
+          ? "result-card is-unavailable"
+          : result.state === "error"
+          ? "result-card is-error"
+          : "result-card"
+      const cardClass = isCollapsed ? `${klass} is-collapsed` : klass
+      const collapseLabel = isCollapsed ? "展开" : "收起"
+      const showCollapseButton = isCollapsed || hasContent
+      const isEmptyExpanded = !isCollapsed && !bodyMarkup && !result.meta
+      const cardClassWithEmpty = isEmptyExpanded
+        ? `${cardClass} is-empty`
+        : cardClass
+      const audioActions = buildAudioActions(result.audio, result)
 
-    return `
-      <article class="${cardClassWithEmpty}">
-        <div class="result-head">
-          <div class="result-title">${escapeHtml(source.label)}</div>
-          <div class="result-actions">
-            ${audioActions}
-            ${showCollapseButton
-              ? `<button class="result-link" type="button" data-action="toggle-collapse" data-source-id="${escapeAttr(source.id)}">${collapseLabel}</button>`
-              : ""}
-            <button class="result-link" type="button" data-open-url="${escapeAttr(source.href(text || "", lastTargetMode))}">打开网站</button>
+      return `
+        <article class="${cardClassWithEmpty}">
+          <div class="result-head">
+            <div class="result-title">${escapeHtml(source.label)}</div>
+            <div class="result-actions">
+              ${audioActions}
+              ${showCollapseButton
+                ? `<button class="result-link" type="button" data-action="toggle-collapse" data-source-id="${escapeAttr(source.id)}">${collapseLabel}</button>`
+                : ""}
+              <button class="result-link" type="button" data-open-url="${escapeAttr(source.href(text || "", lastTargetMode))}">打开网站</button>
+            </div>
           </div>
-        </div>
-        ${bodyMarkup}
-        ${metaMarkup}
-      </article>
-    `
-  }).join("")
+          ${bodyMarkup}
+          ${metaMarkup}
+        </article>
+      `
+    })
+    .join("")
 }
 
 function renderResultBody(source, result) {
@@ -759,7 +878,7 @@ function toSettledResults(states, sourceConfigs) {
 
 function getActiveConfigsForMode(mode) {
   if (mode === "translate") {
-    return activeTranslationSourceConfigs
+    return TRANSLATION_SOURCE_CONFIGS
   }
 
   if (mode === "lookup") {
@@ -767,6 +886,131 @@ function getActiveConfigsForMode(mode) {
   }
 
   return []
+}
+
+function getTranslationSourceEntries() {
+  const enabledIds = new Set([
+    ...activeSettings.enabledSourceIds,
+    ...temporaryEnabledTranslationSourceIds,
+  ])
+
+  return TRANSLATION_SOURCE_CONFIGS.map(source => ({
+    source,
+    enabled: enabledIds.has(source.id),
+  })).sort((left, right) => {
+    if (left.enabled === right.enabled) {
+      return 0
+    }
+
+    return left.enabled ? -1 : 1
+  })
+}
+
+function getEnabledTranslationSourceConfigs() {
+  return getTranslationSourceEntries()
+    .filter(entry => entry.enabled)
+    .map(entry => entry.source)
+}
+
+function getTranslationSettledResults(entries) {
+  return entries
+    .map(entry => {
+      const result = activeTranslationResultsBySourceId.get(entry.source.id)
+      if (!result) {
+        return null
+      }
+
+      return {
+        source: entry.source,
+        result,
+      }
+    })
+    .filter(Boolean)
+}
+
+async function enableTranslationSourceTemporarily(sourceId) {
+  if (!sourceId) {
+    return
+  }
+
+  temporaryEnabledTranslationSourceIds.add(sourceId)
+  const snapshotEntry = activeTranslationEntriesSnapshot.find(
+    entry => entry.source.id === sourceId
+  )
+  if (snapshotEntry) {
+    snapshotEntry.enabled = true
+  }
+  activeTranslationSourceConfigs = getEnabledTranslationSourceConfigs()
+
+  if (currentViewMode !== "translate" || !lastRenderedText) {
+    return
+  }
+
+  const sessionText = lastRenderedText
+  const sessionRunId = currentRunId
+  if (activeTranslationResultsBySourceId.has(sourceId)) {
+    renderCards(
+      lastRenderedText,
+      "translate",
+      getTranslationSettledResults(activeTranslationEntriesSnapshot),
+      activeTranslationEntriesSnapshot
+    )
+    return
+  }
+
+  const source = TRANSLATION_SOURCE_CONFIGS.find(item => item.id === sourceId)
+  if (!source) {
+    renderCards(
+      lastRenderedText,
+      "translate",
+      getTranslationSettledResults(activeTranslationEntriesSnapshot),
+      activeTranslationEntriesSnapshot
+    )
+    return
+  }
+
+  const targetMode = lastTargetMode || decideTargetMode(lastRenderedText)
+  const loadingResult = {
+    state: "loading",
+    text: "请求中...",
+    meta: "",
+  }
+  activeTranslationResultsBySourceId.set(sourceId, loadingResult)
+  renderCards(
+    lastRenderedText,
+    "translate",
+    getTranslationSettledResults(activeTranslationEntriesSnapshot),
+    activeTranslationEntriesSnapshot
+  )
+
+  let result
+  try {
+    result = await source.translate(lastRenderedText, targetMode)
+  } catch (error) {
+    result = {
+      state: "error",
+      text: error instanceof Error ? error.message : String(error),
+      meta: "请求失败",
+    }
+  }
+
+  if (
+    currentViewMode !== "translate" ||
+    !lastRenderedText ||
+    currentRunId !== sessionRunId ||
+    lastRenderedText !== sessionText
+  ) {
+    activeTranslationResultsBySourceId.set(sourceId, result)
+    return
+  }
+
+  activeTranslationResultsBySourceId.set(sourceId, result)
+  renderCards(
+    lastRenderedText,
+    "translate",
+    getTranslationSettledResults(activeTranslationEntriesSnapshot),
+    activeTranslationEntriesSnapshot
+  )
 }
 
 function decideViewMode(text) {
@@ -791,10 +1035,7 @@ function decideViewMode(text) {
 }
 
 function applySettings(settings) {
-  const enabledIds = new Set(settings.enabledSourceIds)
-  activeTranslationSourceConfigs = TRANSLATION_SOURCE_CONFIGS.filter(source =>
-    enabledIds.has(source.id)
-  )
+  activeTranslationSourceConfigs = getEnabledTranslationSourceConfigs()
 
   const translationLabels = activeTranslationSourceConfigs.map(source => source.label)
   setNodeText(

@@ -102,11 +102,15 @@
   }
 
   function getRuntimeUrl(path = "") {
-    if (nativeBrowser?.runtime?.getURL) {
-      return nativeBrowser.runtime.getURL(path)
-    }
+    try {
+      if (nativeBrowser?.runtime?.getURL) {
+        return nativeBrowser.runtime.getURL(path)
+      }
 
-    return nativeChrome.runtime.getURL(path)
+      return nativeChrome.runtime.getURL(path)
+    } catch (error) {
+      return ""
+    }
   }
 
   function openUrl(url, active = false) {

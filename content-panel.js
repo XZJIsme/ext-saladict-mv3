@@ -1,6 +1,5 @@
 if (window.top === window) {
   const PANEL_MESSAGE_SOURCE = "saladict-panel"
-  const PANEL_IFRAME_URL = `${window.SaladictBrowserApi.getRuntimeUrl("popup.html")}?embedded=1`
   const PANEL_Z_INDEX = "2147483647"
   const PANEL_WIDTH = 420
   const PANEL_HEIGHT = 560
@@ -208,7 +207,10 @@ if (window.top === window) {
     bowl.style.backdropFilter = "none"
 
     const icon = document.createElement("img")
-    icon.src = window.SaladictBrowserApi.getRuntimeUrl("assets/icons/icon-24.png")
+    const iconUrl = window.SaladictBrowserApi.getRuntimeUrl("assets/icons/icon-24.png")
+    if (iconUrl) {
+      icon.src = iconUrl
+    }
     icon.alt = ""
     icon.style.display = "block"
     icon.style.width = "24px"
@@ -314,6 +316,11 @@ if (window.top === window) {
       return
     }
 
+    const panelIframeUrl = getPanelIframeUrl()
+    if (!panelIframeUrl) {
+      return
+    }
+
     const host = document.createElement("div")
     host.id = "saladict-mv3-panel-host"
     host.style.position = "fixed"
@@ -327,7 +334,7 @@ if (window.top === window) {
     host.style.background = "transparent"
 
     const iframe = document.createElement("iframe")
-    iframe.src = PANEL_IFRAME_URL
+    iframe.src = panelIframeUrl
     iframe.title = "Saladict 沙拉查词面板"
     iframe.style.display = "block"
     iframe.style.width = "100%"
@@ -342,6 +349,15 @@ if (window.top === window) {
 
     panelState.host = host
     panelState.iframe = iframe
+  }
+
+  function getPanelIframeUrl() {
+    const runtimeUrl = window.SaladictBrowserApi.getRuntimeUrl("popup.html")
+    if (!runtimeUrl) {
+      return ""
+    }
+
+    return `${runtimeUrl}?embedded=1`
   }
 
   function handlePanelMessage(event) {

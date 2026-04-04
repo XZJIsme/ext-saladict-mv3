@@ -13,7 +13,9 @@
 - [x] 继续研究并真正打通 `caiyun` 翻译源，确认 token 方案与旧项目 fallback 逻辑是否值得迁移。
 - [x] 在设置页为彩云翻译增加 token 输入框，并在启用彩云但 token 为空时于 popup 明确提示用户先填写 token。
 - [x] 仿照彩云翻译的设置方式，为 `baidu` 增加 token 输入框，并在启用百度翻译但 token 为空时于 popup 明确提示用户先填写 token。
+- [ ] 增加 `zhipu` 翻译源。
+- [x] 增加未启用的翻译源也可以临时启用一下的能力。
 - [x] 参考旧项目的 pinned 逻辑，在 MV3 里增加“锁定”入口；点击后切换到可保持打开的独立扩展窗口，并显示明确的锁定状态。
 - [ ] 计划多语言支持，至少展示界面里的文案可以切换成其他目标语言。
-- [ ] 翻译结果支持收起某个源。
-- [ ] 增加多主题设置（Viista、Nori、Ocean、Violet、Bacon、Coffee、Sakura）。
+- [x] 翻译结果支持收起某个源。
+- [ ] 增加多主题设置（Viista、Snow、Nori、Ocean、Violet、Bacon、Coffee、Sakura）。

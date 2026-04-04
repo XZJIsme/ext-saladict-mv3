@@ -24,20 +24,10 @@ body {
   margin-bottom: 18px;
 }
 
-.options-icon {
-  width: 24px;
-  height: 24px;
-}
-
 .options-title {
   margin: 0;
   font-size: 26px;
   font-weight: 600;
-}
-
-.options-subtitle {
-  margin: 4px 0 0;
-  color: #496b90;
 }
 
 .options-card {
@@ -189,8 +179,10 @@ body {
 
 .form-message {
   min-height: 22px;
-  margin: 16px 0 0;
+  margin: 0;
   color: #476988;
+  line-height: 1.5;
+  flex: 1;
 }
 
 .form-message.is-error {
@@ -203,6 +195,9 @@ body {
 
 .form-actions {
   margin-top: 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .save-btn {

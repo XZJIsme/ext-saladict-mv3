@@ -304,6 +304,16 @@ body {
   text-decoration: underline;
 }
 
+.result-link--primary {
+  font-weight: 700;
+  color: #1b6ea8;
+}
+
+.result-link--primary:hover {
+  text-decoration: none;
+  color: #12537f;
+}
+
 .result-body {
   position: relative;
   color: #18324b;
@@ -605,6 +615,10 @@ body {
 .result-card.is-unavailable {
   border-color: #d2c393;
   background: linear-gradient(180deg, rgba(255, 251, 240, 0.98) 0%, rgba(248, 239, 209, 0.96) 100%);
+}
+
+.result-card.is-temporary-source .result-body {
+  color: #4d5f73;
 }
 
 .result-card.is-error {
