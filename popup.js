@@ -12,6 +12,7 @@ const {
   queryTabs,
   executeScript,
   sendMessageToTab,
+  sendRuntimeMessage,
 } = window.SaladictBrowserApi
 const { md5 } = window.SaladictHash
 const pageParams = new URLSearchParams(window.location.search)
@@ -32,7 +33,9 @@ let isDraggingPanel = false
 let hasRestoredSnapshotResults = false
 let restoredSnapshotText = ""
 let restoredSnapshotMode = "auto"
+let activeAudioTrigger = null
 let activeAudioPlayer = null
+let activeAudioObjectUrl = ""
 const collinsEntrySelections = new Map()
 
 function setNodeText(node, text) {
@@ -165,6 +168,7 @@ pinBtn?.addEventListener("click", async () => {
 })
 
 document.querySelector(".close-btn")?.addEventListener("click", () => {
+  stopAudioPlayback()
   if (isEmbeddedPanel) {
     postToParent({
       type: "SALADICT_PANEL_CLOSE",
@@ -181,6 +185,7 @@ document.addEventListener("keydown", event => {
   }
 
   event.preventDefault()
+  stopAudioPlayback()
 
   if (isEmbeddedPanel) {
     postToParent({
@@ -218,7 +223,7 @@ results?.addEventListener("click", event => {
     }
 
     event.preventDefault()
-    playAudioUrl(url)
+    playAudioUrl(url, speakerBtn)
     return
   }
 
@@ -230,7 +235,7 @@ results?.addEventListener("click", event => {
     }
 
     event.preventDefault()
-    playAudioUrl(url)
+    playAudioUrl(url, playBtn)
     return
   }
 
@@ -1475,23 +1480,154 @@ function setCollinsEntrySelection(sourceId, index) {
   }
 }
 
-function playAudioUrl(url) {
-  try {
-    if (activeAudioPlayer) {
-      activeAudioPlayer.pause()
-      activeAudioPlayer.currentTime = 0
-    }
-  } catch (error) {
+async function playAudioUrl(url, triggerNode) {
+  clearActiveAudioTrigger()
+
+  if (triggerNode?.classList) {
+    triggerNode.classList.add("isActive")
+    triggerNode.classList.add("is-active")
+    activeAudioTrigger = triggerNode
   }
 
   try {
-    activeAudioPlayer = new Audio(url)
-    activeAudioPlayer.play().catch(() => {
-      setNodeText(statusLine, "发音播放失败，请稍后重试。")
-    })
+    let played = await playAudioDirectly(url)
+
+    if (!played) {
+      played = await playAudioLocally(url)
+    }
+
+    if (!played) {
+      try {
+        const response = await sendRuntimeMessage({
+          type: "PLAY_AUDIO",
+          payload: url,
+        })
+        played = !!response?.ok
+      } catch (error) {
+      }
+    }
+
+    if (!played) {
+      throw new Error("AUDIO_PLAYBACK_FAILED")
+    }
   } catch (error) {
     setNodeText(statusLine, "发音播放失败，请稍后重试。")
+  } finally {
+    clearActiveAudioTrigger()
   }
+}
+
+function clearActiveAudioTrigger() {
+  if (!activeAudioTrigger?.classList) {
+    activeAudioTrigger = null
+    return
+  }
+
+  activeAudioTrigger.classList.remove("isActive")
+  activeAudioTrigger.classList.remove("is-active")
+  activeAudioTrigger = null
+}
+
+function stopAudioPlayback() {
+  clearActiveAudioTrigger()
+  stopLocalAudioPlayback()
+  sendRuntimeMessage({
+    type: "STOP_AUDIO",
+  }).catch(() => {})
+}
+
+async function playAudioLocally(url) {
+  stopLocalAudioPlayback()
+
+  try {
+    const response = await fetch(url, {
+      credentials: "omit",
+      cache: "no-store",
+    })
+
+    if (!response.ok) {
+      return false
+    }
+
+    const blob = await response.blob()
+    activeAudioObjectUrl = URL.createObjectURL(blob)
+    return playAudioFromSource(activeAudioObjectUrl)
+  } catch (error) {
+    return false
+  }
+}
+
+function playAudioDirectly(url) {
+  stopLocalAudioPlayback()
+  return playAudioFromSource(url)
+}
+
+function playAudioFromSource(src) {
+  return new Promise(resolve => {
+    const audio = new Audio(src)
+    activeAudioPlayer = audio
+    audio.preload = "auto"
+
+    const timeoutId = window.setTimeout(() => {
+      cleanup()
+      resolve(true)
+    }, 20000)
+
+    function cleanup() {
+      window.clearTimeout(timeoutId)
+      audio.onended = null
+      audio.onerror = null
+      if (activeAudioPlayer === audio) {
+        activeAudioPlayer = null
+      }
+      if (src === activeAudioObjectUrl) {
+        revokeLocalAudioObjectUrl()
+      }
+    }
+
+    audio.onended = () => {
+      cleanup()
+      resolve(true)
+    }
+
+    audio.onerror = () => {
+      cleanup()
+      resolve(false)
+    }
+
+    audio.play().catch(() => {
+      cleanup()
+      resolve(false)
+    })
+  })
+}
+
+function stopLocalAudioPlayback() {
+  if (activeAudioPlayer) {
+    try {
+      activeAudioPlayer.pause()
+      activeAudioPlayer.currentTime = 0
+      activeAudioPlayer.src = ""
+    } catch (error) {
+    }
+    activeAudioPlayer.onended = null
+    activeAudioPlayer.onerror = null
+    activeAudioPlayer = null
+  }
+
+  revokeLocalAudioObjectUrl()
+}
+
+function revokeLocalAudioObjectUrl() {
+  if (!activeAudioObjectUrl) {
+    return
+  }
+
+  try {
+    URL.revokeObjectURL(activeAudioObjectUrl)
+  } catch (error) {
+  }
+  activeAudioObjectUrl = ""
 }
 
 function parseYoudaoCollinsDocument(doc, fallbackTitle) {
@@ -1526,7 +1662,7 @@ function parseYoudaoCollinsDocument(doc, fallbackTitle) {
       return
     }
 
-    const url = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(rel)}`
+    const url = `https://dict.youdao.com/dictvoice?audio=${rel}`
     if (phsym.includes("英")) {
       audio.uk = url
     } else if (phsym.includes("美")) {
@@ -1597,7 +1733,7 @@ function parseYoudaoCollinsDocument(doc, fallbackTitle) {
 
     result.prons.push({
       phsym,
-      url: `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(rel)}`,
+      url: `https://dict.youdao.com/dictvoice?audio=${rel}`,
     })
   })
 
@@ -1611,7 +1747,8 @@ function parseYoudaoCollinsDocument(doc, fallbackTitle) {
   ) {
     return {
       state: "unavailable",
-      text: "当前有道页里没有返回可用的“柯林斯英汉双解”结果。",
+      // text: "当前有道页里没有返回可用的“柯林斯英汉双解”结果。",
+      text: "没有返回可用的“柯林斯英汉双解”结果。",
       meta: "",
     }
   }

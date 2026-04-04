@@ -4,6 +4,8 @@
   "description": "Minimal Chrome extension demo based on the archived Saladict project.",
   "version": "0.1.0",
   "permissions": [
+    "contextMenus",
+    "offscreen",
     "storage",
     "tabs",
     "activeTab",
@@ -48,6 +50,9 @@
     }
   ],
   "options_page": "options.html",
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
     "default_title": "Open Demo",
     "default_popup": "popup.html"

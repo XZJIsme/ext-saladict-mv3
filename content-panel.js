@@ -37,6 +37,7 @@ if (window.top === window) {
     document.addEventListener("selectionchange", handleDocumentSelectionChange, true)
     window.addEventListener("mousemove", handleGlobalMouseMove, true)
     window.addEventListener("mouseup", handleGlobalMouseUp, true)
+    window.addEventListener("keydown", handleGlobalKeyDown, true)
     window.addEventListener("scroll", hideSelectionBowl, true)
     window.addEventListener("resize", hideSelectionBowl, true)
     window.addEventListener("message", handlePanelMessage)
@@ -198,23 +199,21 @@ if (window.top === window) {
     bowl.style.width = `${BOWL_SIZE}px`
     bowl.style.height = `${BOWL_SIZE}px`
     bowl.style.padding = "0"
-    bowl.style.border = "1px solid rgba(77, 119, 164, 0.95)"
-    bowl.style.borderRadius = "50%"
-    bowl.style.background =
-      "radial-gradient(circle at 30% 30%, rgba(255,255,255,0.98) 0%, rgba(230,242,255,0.98) 42%, rgba(124,172,222,0.96) 100%)"
-    bowl.style.boxShadow =
-      "0 8px 18px rgba(35, 70, 108, 0.24), inset 0 1px 0 rgba(255,255,255,0.92)"
+    bowl.style.border = "0"
+    bowl.style.borderRadius = "0"
+    bowl.style.background = "transparent"
+    bowl.style.boxShadow = "none"
     bowl.style.cursor = "pointer"
     bowl.style.zIndex = PANEL_Z_INDEX
-    bowl.style.backdropFilter = "blur(8px)"
+    bowl.style.backdropFilter = "none"
 
     const icon = document.createElement("img")
     icon.src = window.SaladictBrowserApi.getRuntimeUrl("assets/icons/icon-24.png")
     icon.alt = ""
     icon.style.display = "block"
-    icon.style.width = "18px"
-    icon.style.height = "18px"
-    icon.style.margin = "0 auto"
+    icon.style.width = "24px"
+    icon.style.height = "24px"
+    icon.style.margin = "0"
     bowl.appendChild(icon)
 
     bowl.addEventListener("mousedown", event => {
@@ -503,6 +502,20 @@ if (window.top === window) {
 
   function handleGlobalMouseUp() {
     finishDrag()
+  }
+
+  function handleGlobalKeyDown(event) {
+    if (event.key !== "Escape") {
+      return
+    }
+
+    if (panelState.isVisible) {
+      event.preventDefault()
+      hidePanel()
+      return
+    }
+
+    hideSelectionBowl()
   }
 
   function finishDrag() {

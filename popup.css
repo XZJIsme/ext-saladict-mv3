@@ -576,6 +576,27 @@ body {
   text-decoration: none;
 }
 
+.saladict-Speaker.isActive {
+  animation: saladict-Speaker-playing 1s steps(6) infinite;
+}
+
+.result-link.is-active {
+  color: #1f5588;
+  font-weight: 600;
+}
+
+@keyframes saladict-Speaker-playing {
+  from {
+    background-position-x: 0;
+  }
+  70% {
+    background-position-x: 100%;
+  }
+  100% {
+    background-position-x: 100%;
+  }
+}
+
 .result-card.is-loading {
   border-color: #97b8dc;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(223, 237, 252, 0.98) 100%);
