@@ -2,11 +2,7 @@ const sourceList = document.querySelector("#source-list")
 const form = document.querySelector("#settings-form")
 const saveButton = document.querySelector("#save-btn")
 const formMessage = document.querySelector("#form-message")
-const credentialSection = document.querySelector("#credential-section")
-const baiduCredentialGroup = document.querySelector("#baidu-credential-group")
-const caiyunCredentialGroup = document.querySelector("#caiyun-credential-group")
-const baiduTokenInput = document.querySelector("#baidu-token")
-const caiyunTokenInput = document.querySelector("#caiyun-token")
+const themeInputs = Array.from(document.querySelectorAll('input[name="theme"]'))
 const selectionModeInputs = Array.from(
   document.querySelectorAll('input[name="selection-search-mode"]')
 )
@@ -15,28 +11,52 @@ let savedOptionsData = null
 
 initOptionsPage()
 
-baiduTokenInput?.addEventListener("input", () => {
-  showMessage("", "")
-  updateSaveState()
-})
-
-caiyunTokenInput?.addEventListener("input", () => {
-  showMessage("", "")
-  updateSaveState()
-})
-
-selectionModeInputs.forEach(input => {
-  input.addEventListener("change", () => {
+form?.addEventListener("input", event => {
+  const target = event.target
+  if (
+    target instanceof HTMLInputElement &&
+    (target.id === "baidu-token" || target.id === "caiyun-token")
+  ) {
     showMessage("", "")
     updateSaveState()
-  })
+  }
+})
+
+form?.addEventListener("change", event => {
+  const target = event.target
+  if (!(target instanceof HTMLInputElement)) {
+    return
+  }
+
+  if (target.type === "checkbox" && target.closest("#source-list")) {
+    const checkedIds = getCheckedIds()
+    if (checkedIds.length === 0) {
+      target.checked = true
+      showMessage("至少保留一个翻译源。", "error")
+      updateSaveState()
+      return
+    }
+
+    showMessage("", "")
+    updateSaveState()
+    return
+  }
+
+  if (
+    target.name === "selection-search-mode" ||
+    target.name === "theme"
+  ) {
+    showMessage("", "")
+    updateSaveState()
+  }
 })
 
 async function initOptionsPage() {
   savedOptionsData = await window.SaladictSettings.loadOptionsData()
-  renderSourceList(savedOptionsData.settings)
+  applyTheme(savedOptionsData.settings.theme)
+  renderTheme(savedOptionsData.settings)
+  renderSourceList(savedOptionsData.settings, savedOptionsData.credentials)
   renderSelectionMode(savedOptionsData.settings)
-  renderCredentials(savedOptionsData.credentials)
   updateSaveState()
 }
 
@@ -55,52 +75,43 @@ form?.addEventListener("submit", async event => {
   savedOptionsData = await window.SaladictSettings.saveOptionsData(
     draftOptionsData
   )
-  renderSourceList(savedOptionsData.settings)
+  applyTheme(savedOptionsData.settings.theme)
+  renderTheme(savedOptionsData.settings)
+  renderSourceList(savedOptionsData.settings, savedOptionsData.credentials)
   renderSelectionMode(savedOptionsData.settings)
-  renderCredentials(savedOptionsData.credentials)
   showMessage("设置已保存。", "success")
   updateSaveState()
 })
 
-function renderSourceList(settings) {
+function renderSourceList(settings, credentials) {
   sourceList.innerHTML = window.SaladictSettings.AVAILABLE_SOURCES.map(
     source => {
       const checked = settings.enabledSourceIds.includes(source.id)
         ? "checked"
         : ""
+      const tokenMarkup = renderSourceTokenField(source.id, credentials)
 
       return `
-        <div class="source-item">
-          <input id="source-${source.id}" type="checkbox" value="${escapeAttr(source.id)}" ${checked}>
-          <label for="source-${source.id}">${escapeHtml(source.label)}</label>
+        <div class="source-item" data-source-id="${escapeAttr(source.id)}">
+          <div class="source-main">
+            <input id="source-${source.id}" type="checkbox" value="${escapeAttr(source.id)}" ${checked}>
+            <label for="source-${source.id}">
+              <strong>${escapeHtml(source.label)}</strong>
+              <span class="source-hint">未启用时也可先填写对应 token。</span>
+            </label>
+          </div>
+          ${tokenMarkup}
         </div>
       `
     }
   ).join("")
-
-  sourceList.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-    checkbox.addEventListener("change", event => {
-      const checkedIds = getCheckedIds()
-
-      if (checkedIds.length === 0) {
-        event.currentTarget.checked = true
-        showMessage("至少保留一个翻译源。", "error")
-        updateSaveState()
-        return
-      }
-
-      syncCredentialSection()
-      showMessage("", "")
-      updateSaveState()
-    })
-  })
 }
 
-function renderCredentials(credentials) {
-  baiduTokenInput.value = credentials.baidu.token
-  caiyunTokenInput.value = credentials.caiyun.token
-  syncCredentialSection()
-  updateSaveState()
+function renderTheme(settings) {
+  const activeValue = settings.theme || "viista"
+  themeInputs.forEach(input => {
+    input.checked = input.value === activeValue
+  })
 }
 
 function renderSelectionMode(settings) {
@@ -121,13 +132,14 @@ function getDraftOptionsData() {
     settings: window.SaladictSettings.normalizeSettings({
       enabledSourceIds: getCheckedIds(),
       selectionSearchMode: getSelectedSearchMode(),
+      theme: getSelectedTheme(),
     }),
     credentials: window.SaladictSettings.normalizeCredentials({
       baidu: {
-        token: baiduTokenInput.value,
+        token: getTokenValue("baidu"),
       },
       caiyun: {
-        token: caiyunTokenInput.value,
+        token: getTokenValue("caiyun"),
       },
     }),
   }
@@ -138,7 +150,17 @@ function getSelectedSearchMode() {
   return checkedInput?.value || "auto"
 }
 
+function getSelectedTheme() {
+  const checkedInput = themeInputs.find(input => input.checked)
+  return checkedInput?.value || "viista"
+}
+
 function updateSaveState() {
+  if (!savedOptionsData) {
+    saveButton.disabled = true
+    return
+  }
+
   const draftOptionsData = getDraftOptionsData()
   const hasSettingsChanges = !window.SaladictSettings.isSettingsEqual(
     savedOptionsData.settings,
@@ -152,13 +174,42 @@ function updateSaveState() {
   saveButton.disabled = !(hasSettingsChanges || hasCredentialChanges)
 }
 
-function syncCredentialSection() {
-  const checkedIds = getCheckedIds()
-  credentialSection.hidden = !(
-    checkedIds.includes("baidu") || checkedIds.includes("caiyun")
-  )
-  baiduCredentialGroup.hidden = !checkedIds.includes("baidu")
-  caiyunCredentialGroup.hidden = !checkedIds.includes("caiyun")
+function applyTheme(theme) {
+  document.body.dataset.theme = theme === "mojavv" ? "mojavv" : "viista"
+}
+
+function getTokenValue(sourceId) {
+  const tokenInput = document.querySelector(`#${sourceId}-token`)
+  return tokenInput instanceof HTMLInputElement ? tokenInput.value : ""
+}
+
+function renderSourceTokenField(sourceId, credentials) {
+  const token = credentials?.[sourceId]?.token || ""
+  const label = window.SaladictSettings.AVAILABLE_SOURCES.find(
+    source => source.id === sourceId
+  )?.label
+
+  if (sourceId !== "baidu" && sourceId !== "caiyun") {
+    return ""
+  }
+
+  return `
+    <div class="source-credential">
+      <label class="credential-label" for="${sourceId}-token">
+        ${escapeHtml(label || sourceId)} Token
+      </label>
+      <input
+        id="${sourceId}-token"
+        class="credential-input"
+        type="password"
+        value="${escapeAttr(token)}"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="请输入${escapeHtml(label || sourceId)} token"
+      >
+      <p class="credential-note">未启用时也可以先填写并保存，启用后立即生效。</p>
+    </div>
+  `
 }
 
 function showMessage(text, type) {

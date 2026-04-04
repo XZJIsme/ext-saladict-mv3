@@ -8,11 +8,17 @@ const AVAILABLE_SOURCES = [
   { id: "caiyun", label: "彩云翻译" },
 ]
 
+const AVAILABLE_THEMES = [
+  { id: "viista", label: "WindovvViista" },
+  { id: "mojavv", label: "Mojavv" },
+]
+
 const DEFAULT_SETTINGS = {
-  version: 4,
+  version: 5,
   enabledSourceIds: AVAILABLE_SOURCES.map(source => source.id),
   defaultPinned: false,
   selectionSearchMode: "auto",
+  theme: "viista",
   mode: {
     direct: false,
   },
@@ -46,9 +52,12 @@ function normalizeSettings(rawSettings) {
     rawSettings?.selectionSearchMode === "translate"
       ? rawSettings.selectionSearchMode
       : DEFAULT_SETTINGS.selectionSearchMode
+  const theme = AVAILABLE_THEMES.some(item => item.id === rawSettings?.theme)
+    ? rawSettings.theme
+    : DEFAULT_SETTINGS.theme
 
   return {
-    version: 4,
+    version: 5,
     enabledSourceIds:
       enabledSourceIds.length > 0
         ? enabledSourceIds
@@ -58,6 +67,7 @@ function normalizeSettings(rawSettings) {
         ? rawSettings.defaultPinned
         : DEFAULT_SETTINGS.defaultPinned,
     selectionSearchMode,
+    theme,
     // Selection auto-popup is intentionally disabled in this fork.
     mode: { direct: false },
     pinMode: { direct: false },
@@ -137,6 +147,7 @@ function isSettingsEqual(left, right) {
   return (
     normalizedLeft.defaultPinned === normalizedRight.defaultPinned &&
     normalizedLeft.selectionSearchMode === normalizedRight.selectionSearchMode &&
+    normalizedLeft.theme === normalizedRight.theme &&
     normalizedLeft.mode.direct === normalizedRight.mode.direct &&
     normalizedLeft.pinMode.direct === normalizedRight.pinMode.direct &&
     normalizedLeft.enabledSourceIds.every((id, index) => {
@@ -156,6 +167,7 @@ function isCredentialsEqual(left, right) {
 
 window.SaladictSettings = {
   AVAILABLE_SOURCES,
+  AVAILABLE_THEMES,
   CREDENTIALS_STORAGE_KEY,
   DEFAULT_CREDENTIALS,
   DEFAULT_SETTINGS,

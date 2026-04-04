@@ -227,7 +227,7 @@ results?.addEventListener("click", event => {
       return
     }
 
-    enableTranslationSourceTemporarily(sourceId)
+    enableTranslationSourceTemporarily(sourceId).catch(() => {})
     return
   }
 
@@ -1035,6 +1035,7 @@ function decideViewMode(text) {
 }
 
 function applySettings(settings) {
+  applyTheme(settings.theme)
   activeTranslationSourceConfigs = getEnabledTranslationSourceConfigs()
 
   const translationLabels = activeTranslationSourceConfigs.map(source => source.label)
@@ -1054,6 +1055,11 @@ function applySettings(settings) {
         : statusLine?.textContent || ""
       : "当前没有启用的翻译源。"
   )
+}
+
+function applyTheme(theme) {
+  const nextTheme = theme === "mojavv" ? "mojavv" : "viista"
+  document.body.dataset.theme = nextTheme
 }
 
 function handleEmbeddedMessage(event) {
