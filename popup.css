@@ -313,12 +313,267 @@ body {
   z-index: 1;
 }
 
+.result-body-rich {
+  white-space: normal;
+  line-height: 1.55;
+  font-size: 13px;
+}
+
+.result-body-rich p,
+.result-body-rich ul,
+.result-body-rich ol,
+.result-body-rich h1,
+.result-body-rich h2,
+.result-body-rich h3,
+.result-body-rich h4 {
+  margin-top: 0;
+}
+
+.result-body-rich a {
+  color: #1f5e97;
+}
+
+.result-body-rich a:hover {
+  text-decoration: underline;
+}
+
 .result-meta {
   position: relative;
   margin-top: 6px;
   font-size: 11px;
   color: #5d7c9b;
   z-index: 1;
+}
+
+.dictYoudao-HeaderContainer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+.dictYoudao-HeaderContainer + .dictYoudao-HeaderContainer {
+  margin-top: 4px;
+}
+
+.dictYoudao-Title {
+  margin: 0 8px 0 0;
+  font-size: 22px;
+  line-height: 1.15;
+  color: #18324b;
+}
+
+.dictYoudao-Pattern {
+  margin-top: 6px;
+  color: #5f7791;
+}
+
+.dictYoudao-Stars {
+  display: inline-flex;
+  margin-right: 8px;
+}
+
+.dictYoudao-PronItem {
+  display: inline-flex;
+  align-items: center;
+  color: #375777;
+}
+
+.dictYoudao-Rank {
+  color: #5f7791;
+}
+
+.dictYoudao-Basic {
+  margin: 10px 0 2px;
+}
+
+.dictYoudao-Basic p:last-child,
+.dictYoudao-Collins p:last-child,
+.dictYoudao-Discrimination p:last-child,
+.dictYoudao-Translation p:last-child {
+  margin-bottom: 0;
+}
+
+.dictYoudao-EntrySelectWrap {
+  margin-bottom: 10px;
+}
+
+.dictYoudao-EntrySelect {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 30px;
+  padding: 4px 8px;
+  border: 1px solid #a8c2de;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #ffffff 0%, #eef6fe 100%);
+  color: #18324b;
+}
+
+.entryBox-Wrap {
+  padding-top: 13px;
+}
+
+.entryBox {
+  position: relative;
+  margin-bottom: 14px;
+  padding: 14px 8px 8px;
+  border: 1px solid #c76e06;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.32);
+}
+
+.entryBox-Title {
+  position: absolute;
+  top: 0;
+  left: 13px;
+  max-width: 90%;
+  margin: 0;
+  overflow: hidden;
+  transform: translateY(-50%);
+  padding: 0 5px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 15px;
+  line-height: 1.2;
+  color: #18324b;
+  background: rgba(239, 246, 253, 0.98);
+}
+
+.dictYoudao-Collins {
+  position: relative;
+}
+
+.dictYoudao-Collins ul,
+.dictYoudao-Collins ol {
+  margin: 0;
+  padding-left: 1.5em;
+}
+
+.dictYoudao-Collins .ol {
+  padding-left: 0;
+  list-style: none;
+}
+
+.dictYoudao-Collins .ol > li {
+  position: relative;
+  margin-bottom: 12px;
+  list-style: none;
+}
+
+.dictYoudao-Collins .ol > li:last-child {
+  margin-bottom: 0;
+}
+
+.dictYoudao-Collins h4 {
+  margin-bottom: 10px;
+  padding: 0 0.5em;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.dictYoudao-Collins h4 > * {
+  margin-right: 5px;
+}
+
+.dictYoudao-Collins h4 > .title {
+  color: #f9690e;
+}
+
+.dictYoudao-Collins .additional {
+  font-weight: 400;
+  color: #6d7780;
+}
+
+.dictYoudao-Collins .collinsOrder {
+  position: absolute;
+  left: 0;
+  width: 1.5em;
+  text-align: right;
+}
+
+.dictYoudao-Collins .collinsMajorTrans {
+  position: relative;
+}
+
+.dictYoudao-Collins .collinsMajorTrans > p {
+  margin: 0;
+  padding-left: 1.8em;
+}
+
+.dictYoudao-Collins .exampleLists {
+  position: relative;
+  margin-top: 8px;
+  padding-left: 2.5em;
+  color: #6d7780;
+  border-left: 1px solid #666;
+}
+
+.dictYoudao-Collins .exampleLists .examples > p {
+  margin: 0.25em 0;
+}
+
+.dictYoudao-Collins .exampleLists .collinsOrder {
+  left: 0.5em;
+}
+
+.dictYoudao-Discrimination {
+  position: relative;
+}
+
+.dictYoudao-Discrimination .do-detail {
+  display: none;
+}
+
+.dictYoudao-Discrimination .title {
+  font-size: 1.2em;
+  font-weight: 700;
+}
+
+.dictYoudao-Discrimination .wordGroup,
+.dictYoudao-Discrimination .via {
+  padding-left: 1.2em;
+}
+
+.dictYoudao-Discrimination .via {
+  color: #888;
+}
+
+.dictYoudao-Discrimination_Title {
+  margin: 14px 0 8px;
+  font-size: 1.2em;
+  color: #18324b;
+}
+
+.dictYoudao-Sentence {
+  margin: 0;
+  padding: 0 0 0 1.5em;
+}
+
+.dictYoudao-Translation > p:last-child {
+  display: none;
+}
+
+.dictYoudao-Related {
+  line-height: 1.6;
+}
+
+.saladict-Speaker {
+  display: inline-block;
+  width: 1.1em;
+  height: 1.1em;
+  margin: 0 5px;
+  padding: 0;
+  vertical-align: text-bottom;
+  border: none;
+  outline: none;
+  text-decoration: none;
+  background: no-repeat left / cover url("assets/icons/speaker.svg");
+  cursor: pointer;
+  user-select: none;
+}
+
+.saladict-Speaker:hover {
+  text-decoration: none;
 }
 
 .result-card.is-loading {

@@ -32,6 +32,7 @@ let isDraggingPanel = false
 let hasRestoredSnapshotResults = false
 let restoredSnapshotText = ""
 let activeAudioPlayer = null
+const collinsEntrySelections = new Map()
 
 function setNodeText(node, text) {
   if (node) {
@@ -191,6 +192,18 @@ results?.addEventListener("click", event => {
     return
   }
 
+  const speakerBtn = event.target.closest?.(".saladict-Speaker[data-audio-url]")
+  if (speakerBtn) {
+    const url = speakerBtn.getAttribute("data-audio-url")
+    if (!url) {
+      return
+    }
+
+    event.preventDefault()
+    playAudioUrl(url)
+    return
+  }
+
   const playBtn = event.target.closest?.("[data-action='play-audio']")
   if (playBtn) {
     const url = playBtn.getAttribute("data-audio-url")
@@ -205,6 +218,18 @@ results?.addEventListener("click", event => {
 
   const openBtn = event.target.closest?.("[data-open-url]")
   if (!openBtn) {
+    const contentLink = event.target.closest?.(".result-body a[href]")
+    if (!contentLink || contentLink.classList.contains("saladict-Speaker")) {
+      return
+    }
+
+    const contentUrl = contentLink.getAttribute("href")
+    if (!contentUrl || contentUrl === "#") {
+      return
+    }
+
+    event.preventDefault()
+    openUrl(contentUrl, false)
     return
   }
 
@@ -215,6 +240,24 @@ results?.addEventListener("click", event => {
 
   event.preventDefault()
   openUrl(url, false)
+})
+
+results?.addEventListener("change", event => {
+  const entrySelect = event.target.closest?.(
+    "[data-action='select-collins-entry']"
+  )
+  if (!entrySelect) {
+    return
+  }
+
+  const sourceId = entrySelect.getAttribute("data-source-id")
+  if (!sourceId) {
+    return
+  }
+
+  const nextIndex = Number(entrySelect.value) || 0
+  setCollinsEntrySelection(sourceId, nextIndex)
+  renderCards(lastRenderedText, currentViewMode, lastSettledResults)
 })
 
 input?.addEventListener("compositionstart", () => {
@@ -470,6 +513,11 @@ function renderCards(text, mode = currentViewMode, settled = []) {
       meta: "",
     }
     const isCollapsed = collapsedSourceIds.has(source.id)
+    const bodyMarkup = isCollapsed ? "" : renderResultBody(source, result)
+    const metaMarkup = isCollapsed || !result.meta
+      ? ""
+      : `<div class="result-meta">${escapeHtml(result.meta)}</div>`
+    const hasContent = Boolean(bodyMarkup) || Boolean(result.meta)
 
     const klass =
       result.state === "loading"
@@ -480,20 +528,13 @@ function renderCards(text, mode = currentViewMode, settled = []) {
         ? "result-card is-error"
         : "result-card"
     const cardClass = isCollapsed ? `${klass} is-collapsed` : klass
-    const bodyMarkup = isCollapsed
-      ? ""
-      : `<div class="result-body">${escapeHtml(result.text || "")}</div>`
-    const metaMarkup = isCollapsed || !result.meta
-      ? ""
-      : `<div class="result-meta">${escapeHtml(result.meta)}</div>`
-    const hasContent = Boolean(result.text) || Boolean(result.meta)
     const collapseLabel = isCollapsed ? "展开" : "收起"
     const showCollapseButton = isCollapsed || hasContent
-    const isEmptyExpanded = !isCollapsed && !result.text && !result.meta
+    const isEmptyExpanded = !isCollapsed && !bodyMarkup && !result.meta
     const cardClassWithEmpty = isEmptyExpanded
       ? `${cardClass} is-empty`
       : cardClass
-    const audioActions = buildAudioActions(result.audio)
+    const audioActions = buildAudioActions(result.audio, result)
 
     return `
       <article class="${cardClassWithEmpty}">
@@ -512,6 +553,163 @@ function renderCards(text, mode = currentViewMode, settled = []) {
       </article>
     `
   }).join("")
+}
+
+function renderResultBody(source, result) {
+  if (!result || typeof result !== "object") {
+    return ""
+  }
+
+  if (result.kind === "youdao-collins" && result.data) {
+    return `
+      <div class="result-body result-body-rich">
+        ${renderYoudaoDictionaryBody(source.id, result.data)}
+      </div>
+    `
+  }
+
+  if (result.kind === "youdao-related" && result.data?.html) {
+    return `
+      <div class="result-body result-body-rich">
+        <div class="dictYoudao-Related">${result.data.html}</div>
+      </div>
+    `
+  }
+
+  if (!result.text) {
+    return ""
+  }
+
+  return `<div class="result-body">${escapeHtml(result.text)}</div>`
+}
+
+function renderYoudaoDictionaryBody(sourceId, data) {
+  const titleMarkup = data.title
+    ? `
+      <div class="dictYoudao-HeaderContainer">
+        <h1 class="dictYoudao-Title">${escapeHtml(data.title)}</h1>
+        ${data.pattern
+          ? `<span class="dictYoudao-Pattern">${escapeHtml(data.pattern)}</span>`
+          : ""}
+      </div>
+    `
+    : ""
+
+  const headerBits = []
+  if (Number(data.stars) > 0) {
+    headerBits.push(renderStarRateMarkup(data.stars, "dictYoudao-Stars", "1.1em"))
+  }
+
+  const prons = Array.isArray(data.prons) ? data.prons : []
+  prons.forEach(pron => {
+    if (!pron?.url) {
+      return
+    }
+
+    headerBits.push(`
+      <span class="dictYoudao-PronItem">
+        ${escapeHtml(pron.phsym || "")}
+        ${renderSpeakerMarkup(pron.url)}
+      </span>
+    `)
+  })
+
+  if (data.rank) {
+    headerBits.push(`<span class="dictYoudao-Rank">${escapeHtml(data.rank)}</span>`)
+  }
+
+  const headerMetaMarkup = headerBits.length
+    ? `<div class="dictYoudao-HeaderContainer">${headerBits.join("")}</div>`
+    : ""
+
+  const collinsEntries = Array.isArray(data.collins)
+    ? data.collins.filter(entry => entry && entry.content)
+    : []
+  const selectedEntryIndex = getSelectedCollinsEntryIndex(
+    sourceId,
+    collinsEntries.length,
+    data.activeCollinsEntry
+  )
+  const selectedCollinsEntry = collinsEntries[selectedEntryIndex] || null
+  const collinsSelectMarkup = collinsEntries.length > 1
+    ? `
+      <div class="dictYoudao-EntrySelectWrap">
+        <select
+          class="dictYoudao-EntrySelect"
+          data-action="select-collins-entry"
+          data-source-id="${escapeAttr(sourceId)}"
+        >
+          ${collinsEntries
+            .map((entry, index) => `
+              <option value="${index}"${index === selectedEntryIndex ? " selected" : ""}>
+                ${escapeHtml(entry.title || `义项 ${index + 1}`)}
+              </option>
+            `)
+            .join("")}
+        </select>
+      </div>
+    `
+    : ""
+
+  const collinsMarkup = selectedCollinsEntry
+    ? renderEntryBox(
+        "柯林斯英汉双解",
+        `
+          ${collinsSelectMarkup}
+          <div class="dictYoudao-Collins">${selectedCollinsEntry.content}</div>
+        `
+      )
+    : ""
+
+  const basicMarkup = data.basic
+    ? `<div class="dictYoudao-Basic">${data.basic}</div>`
+    : ""
+  const discriminationMarkup = data.discrimination
+    ? `
+      <div class="dictYoudao-Discrimination">
+        <h1 class="dictYoudao-Discrimination_Title">词义辨析</h1>
+        ${data.discrimination}
+      </div>
+    `
+    : ""
+  const sentenceMarkup = data.sentence
+    ? renderEntryBox(
+        "权威例句",
+        `<ol class="dictYoudao-Sentence">${data.sentence}</ol>`
+      )
+    : ""
+  const translationMarkup = data.translation
+    ? renderEntryBox(
+        "机器翻译",
+        `<div class="dictYoudao-Translation">${data.translation}</div>`
+      )
+    : ""
+
+  return [
+    titleMarkup,
+    headerMetaMarkup,
+    basicMarkup,
+    collinsMarkup,
+    discriminationMarkup,
+    sentenceMarkup,
+    translationMarkup,
+  ].join("")
+}
+
+function renderEntryBox(title, content, className = "") {
+  if (!content) {
+    return ""
+  }
+
+  const wrapClass = className ? `entryBox-Wrap ${className}` : "entryBox-Wrap"
+  return `
+    <div class="${wrapClass}">
+      <section class="entryBox">
+        <h1 class="entryBox-Title">${escapeHtml(title)}</h1>
+        <div>${content}</div>
+      </section>
+    </div>
+  `
 }
 
 function toSettledResults(states, sourceConfigs) {
@@ -647,6 +845,8 @@ function createPanelSnapshot() {
           state: normalizedState,
           text: String(result.text || ""),
           meta: String(result.meta || ""),
+          kind: typeof result.kind === "string" ? result.kind : "",
+          data: cloneSerializable(result.data),
           audio: normalizeAudioMap(result.audio),
         },
       }
@@ -705,6 +905,9 @@ function restoreSnapshot(snapshot) {
               state: String(item.result.state || "idle"),
               text: String(item.result.text || ""),
               meta: String(item.result.meta || ""),
+              kind:
+                typeof item.result.kind === "string" ? item.result.kind : "",
+              data: cloneSerializable(item.result.data),
               audio: normalizeAudioMap(item.result.audio),
             },
           }
@@ -1129,7 +1332,11 @@ function normalizeAudioMap(audio) {
   return Object.keys(map).length > 0 ? map : undefined
 }
 
-function buildAudioActions(audio) {
+function buildAudioActions(audio, result) {
+  if (result?.kind === "youdao-collins" || result?.kind === "youdao-related") {
+    return ""
+  }
+
   const normalized = normalizeAudioMap(audio)
   if (!normalized) {
     return ""
@@ -1155,6 +1362,84 @@ function buildAudioActions(audio) {
   return actions.join("")
 }
 
+function renderSpeakerMarkup(url) {
+  if (!url) {
+    return ""
+  }
+
+  return `
+    <a
+      href="#"
+      class="saladict-Speaker"
+      data-audio-url="${escapeAttr(url)}"
+      title="播放发音"
+      aria-label="播放发音"
+    ></a>
+  `
+}
+
+function renderStarRateMarkup(
+  rate,
+  className = "",
+  size = "1em",
+  tagName = "span"
+) {
+  const safeRate = Math.max(0, Math.min(5, Number(rate) || 0))
+  if (!safeRate) {
+    return ""
+  }
+
+  const classAttr = className ? ` class="${className}"` : ""
+  return `
+    <${tagName}${classAttr}>
+      ${Array.from({ length: 5 }, (_, index) => `
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 426.67 426.67"
+          width="${size}"
+          height="${size}"
+          style="${index === 4 ? "" : "margin-right:1px"}"
+        >
+          <path
+            fill="${index < safeRate ? "#FAC917" : "#d1d8de"}"
+            d="M213.33 10.44l65.92 133.58 147.42 21.42L320 269.4l25.17 146.83-131.84-69.32-131.85 69.34 25.2-146.82L0 165.45l147.4-21.42"
+          />
+        </svg>
+      `).join("")}
+    </${tagName}>
+  `
+}
+
+function getSelectedCollinsEntryIndex(sourceId, entryCount, fallbackIndex = 0) {
+  if (entryCount <= 0) {
+    return 0
+  }
+
+  const rawIndex = collinsEntrySelections.has(sourceId)
+    ? collinsEntrySelections.get(sourceId)
+    : fallbackIndex
+  const nextIndex = Math.max(
+    0,
+    Math.min(entryCount - 1, Number(rawIndex) || 0)
+  )
+  collinsEntrySelections.set(sourceId, nextIndex)
+  return nextIndex
+}
+
+function setCollinsEntrySelection(sourceId, index) {
+  const nextIndex = Math.max(0, Number(index) || 0)
+  collinsEntrySelections.set(sourceId, nextIndex)
+
+  const settledItem = lastSettledResults.find(item => item?.source?.id === sourceId)
+  if (
+    settledItem?.result?.kind === "youdao-collins" &&
+    settledItem.result.data &&
+    typeof settledItem.result.data === "object"
+  ) {
+    settledItem.result.data.activeCollinsEntry = nextIndex
+  }
+}
+
 function playAudioUrl(url) {
   try {
     if (activeAudioPlayer) {
@@ -1177,6 +1462,19 @@ function playAudioUrl(url) {
 function parseYoudaoCollinsDocument(doc, fallbackTitle) {
   const typo = doc.querySelector(".error-typo")
   if (typo) {
+    const relatedHtml = getSanitizedInnerHtml(typo)
+    if (relatedHtml) {
+      return {
+        state: "ok",
+        kind: "youdao-related",
+        data: {
+          html: relatedHtml,
+        },
+        text: "",
+        meta: "",
+      }
+    }
+
     return {
       state: "unavailable",
       text: `柯林斯英汉双解没有找到 “${fallbackTitle}” 的结果。`,
@@ -1213,48 +1511,191 @@ function parseYoudaoCollinsDocument(doc, fallbackTitle) {
       }
 
       const starNode = clone.querySelector(".star")
-      let stars = ""
       if (starNode) {
         const match = String(starNode.className || "").match(/star(\d+)/)
         if (match) {
-          stars = "★".repeat(Number(match[1]))
+          starNode.outerHTML = renderStarRateMarkup(Number(match[1]))
         }
       }
 
-      const content = getNodeText(clone)
+      const content = getSanitizedInnerHtml(clone)
       if (!content) {
         return null
       }
 
       return {
         title,
-        stars,
         content,
       }
     })
     .filter(Boolean)
 
-  if (containers.length === 0) {
+  const result = {
+    title: getNodeText(doc.querySelector(".keyword")),
+    stars: 0,
+    rank: getNodeText(doc.querySelector(".rank")),
+    pattern: getNodeText(doc.querySelector(".pattern")),
+    prons: [],
+    basic: getSanitizedInnerHtml(doc, "#phrsListTab .trans-container"),
+    collins: containers,
+    discrimination: getSanitizedInnerHtml(doc, "#discriminate"),
+    sentence: getSanitizedInnerHtml(doc, "#authority .ol"),
+    translation: getSanitizedInnerHtml(doc, "#fanyiToggle .trans-container"),
+    activeCollinsEntry: 0,
+  }
+
+  const starNode = doc.querySelector(".star")
+  if (starNode) {
+    const match = String(starNode.className || "").match(/star(\d+)/)
+    if (match) {
+      result.stars = Number(match[1])
+    }
+  }
+
+  doc.querySelectorAll(".baav .pronounce").forEach(item => {
+    const phsym = getNodeText(item)
+    const voice = item.querySelector(".dictvoice")
+    const rel = String(voice?.getAttribute("data-rel") || "")
+    if (!rel) {
+      return
+    }
+
+    result.prons.push({
+      phsym,
+      url: `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(rel)}`,
+    })
+  })
+
+  if (
+    !result.title &&
+    !result.basic &&
+    result.collins.length === 0 &&
+    !result.discrimination &&
+    !result.sentence &&
+    !result.translation
+  ) {
     return {
       state: "unavailable",
-      text: "当前有道页里没有返回“柯林斯英汉双解”版块。",
+      text: "当前有道页里没有返回可用的“柯林斯英汉双解”结果。",
       meta: "",
     }
   }
 
-  const text = containers
-    .map(item => {
-      const heading = [item.title, item.stars].filter(Boolean).join(" ")
-      return heading ? `${heading}\n${item.content}` : item.content
-    })
-    .join("\n\n")
-    .slice(0, 5000)
-
   return {
     state: "ok",
-    text,
-    meta: "有道词典中的柯林斯英汉双解",
+    kind: "youdao-collins",
+    data: result,
+    text: "",
+    meta: "",
     audio: normalizeAudioMap(audio),
+  }
+}
+
+function getSanitizedInnerHtml(parent, selector) {
+  const sourceNode = selector ? parent.querySelector(selector) : parent
+  if (!sourceNode) {
+    return ""
+  }
+
+  const clone = sourceNode.cloneNode(true)
+  sanitizeRichContentNode(clone, "https://www.youdao.com")
+  return String(clone.innerHTML || "").trim()
+}
+
+function sanitizeRichContentNode(root, host) {
+  const elements = []
+  if (root?.nodeType === Node.ELEMENT_NODE) {
+    elements.push(root)
+  }
+  elements.push(...root.querySelectorAll("*"))
+
+  root.querySelectorAll("script, style, iframe, object, embed, link, meta").forEach(
+    node => node.remove()
+  )
+
+  elements.forEach(element => {
+    Array.from(element.attributes || []).forEach(attribute => {
+      const name = attribute.name.toLowerCase()
+      const value = attribute.value
+
+      if (name === "style" || name.startsWith("on")) {
+        element.removeAttribute(attribute.name)
+        return
+      }
+
+      if (name === "href" || name === "src") {
+        const normalizedUrl = absolutizeUrl(value, host)
+        if (normalizedUrl) {
+          element.setAttribute(attribute.name, normalizedUrl)
+        } else {
+          element.removeAttribute(attribute.name)
+        }
+        return
+      }
+
+      if (name === "srcset") {
+        const normalizedSrcset = normalizeSrcset(value, host)
+        if (normalizedSrcset) {
+          element.setAttribute("srcset", normalizedSrcset)
+        } else {
+          element.removeAttribute("srcset")
+        }
+      }
+    })
+
+    if (element.tagName === "A") {
+      element.setAttribute("target", "_blank")
+      element.setAttribute("rel", "noopener noreferrer")
+    }
+  })
+}
+
+function absolutizeUrl(value, host) {
+  const raw = String(value || "").trim()
+  if (!raw) {
+    return ""
+  }
+
+  if (/^(javascript|data):/i.test(raw)) {
+    return ""
+  }
+
+  if (raw === "#") {
+    return "#"
+  }
+
+  try {
+    return new URL(raw, host).href
+  } catch (error) {
+    return raw
+  }
+}
+
+function normalizeSrcset(value, host) {
+  return String(value || "")
+    .split(",")
+    .map(item => item.trim())
+    .filter(Boolean)
+    .map(item => {
+      const [url, descriptor] = item.split(/\s+/, 2)
+      const normalizedUrl = absolutizeUrl(url, host)
+      return normalizedUrl
+        ? [normalizedUrl, descriptor].filter(Boolean).join(" ")
+        : ""
+    })
+    .filter(Boolean)
+    .join(", ")
+}
+
+function cloneSerializable(value) {
+  if (value == null) {
+    return value
+  }
+
+  try {
+    return JSON.parse(JSON.stringify(value))
+  } catch (error) {
+    return null
   }
 }
 
