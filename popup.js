@@ -31,6 +31,7 @@ let isPinnedState = false
 let isDraggingPanel = false
 let hasRestoredSnapshotResults = false
 let restoredSnapshotText = ""
+let restoredSnapshotMode = "auto"
 let activeAudioPlayer = null
 const collinsEntrySelections = new Map()
 
@@ -174,6 +175,23 @@ document.querySelector(".close-btn")?.addEventListener("click", () => {
   window.close()
 })
 
+document.addEventListener("keydown", event => {
+  if (event.key !== "Escape") {
+    return
+  }
+
+  event.preventDefault()
+
+  if (isEmbeddedPanel) {
+    postToParent({
+      type: "SALADICT_PANEL_CLOSE",
+    })
+    return
+  }
+
+  window.close()
+})
+
 results?.addEventListener("click", event => {
   const collapseBtn = event.target.closest?.("[data-action='toggle-collapse']")
   if (collapseBtn) {
@@ -278,15 +296,15 @@ input?.addEventListener("keydown", event => {
   }
 
   event.preventDefault()
-  runPreferredAction(input.value.trim())
+  runSearch(input.value.trim(), "auto")
 })
 
 translateBtn?.addEventListener("click", () => {
-  runTranslations(input.value.trim())
+  runSearch(input.value.trim(), "translate")
 })
 
 wordwebBtn?.addEventListener("click", () => {
-  runDictionaryLookup(input.value.trim())
+  runSearch(input.value.trim(), "lookup")
 })
 
 if (isEmbeddedPanel) {
@@ -467,8 +485,21 @@ async function runDictionaryLookup(text) {
   setNodeText(statusLine, `已完成 ${totalCount} 个词典源。`)
 }
 
-function runPreferredAction(text) {
-  const nextMode = decideViewMode(text)
+function normalizeSearchMode(mode) {
+  return mode === "lookup" || mode === "translate" ? mode : "auto"
+}
+
+function decideActionMode(text, requestedMode = "auto") {
+  const nextRequestedMode = normalizeSearchMode(requestedMode)
+  if (nextRequestedMode !== "auto") {
+    return nextRequestedMode
+  }
+
+  return decideViewMode(text)
+}
+
+function runSearch(text, requestedMode = "auto") {
+  const nextMode = decideActionMode(text, requestedMode)
   if (nextMode === "lookup") {
     runDictionaryLookup(text)
     return
@@ -805,21 +836,24 @@ function handleEmbeddedMessage(event) {
 
   if (event.data.type === "SALADICT_PANEL_SEARCH") {
     const text = String(event.data.payload?.text || "").trim()
+    const requestedMode = normalizeSearchMode(event.data.payload?.mode)
     if (
       hasRestoredSnapshotResults &&
       text &&
-      text === restoredSnapshotText
+      text === restoredSnapshotText &&
+      requestedMode === restoredSnapshotMode
     ) {
       return
     }
 
     hasRestoredSnapshotResults = false
     restoredSnapshotText = ""
+    restoredSnapshotMode = "auto"
     if (input) {
       input.value = text
     }
     if (text) {
-      runPreferredAction(text)
+      runSearch(text, event.data.payload?.mode)
     }
   }
 }
@@ -916,6 +950,7 @@ function restoreSnapshot(snapshot) {
     : []
 
   restoredSnapshotText = text
+  restoredSnapshotMode = currentViewMode === "lookup" ? "lookup" : "translate"
   hasRestoredSnapshotResults = settledList.length > 0
   renderCards(text, currentViewMode, settledList)
 }

@@ -7,6 +7,9 @@ const baiduCredentialGroup = document.querySelector("#baidu-credential-group")
 const caiyunCredentialGroup = document.querySelector("#caiyun-credential-group")
 const baiduTokenInput = document.querySelector("#baidu-token")
 const caiyunTokenInput = document.querySelector("#caiyun-token")
+const selectionModeInputs = Array.from(
+  document.querySelectorAll('input[name="selection-search-mode"]')
+)
 
 let savedOptionsData = null
 
@@ -22,9 +25,17 @@ caiyunTokenInput?.addEventListener("input", () => {
   updateSaveState()
 })
 
+selectionModeInputs.forEach(input => {
+  input.addEventListener("change", () => {
+    showMessage("", "")
+    updateSaveState()
+  })
+})
+
 async function initOptionsPage() {
   savedOptionsData = await window.SaladictSettings.loadOptionsData()
   renderSourceList(savedOptionsData.settings)
+  renderSelectionMode(savedOptionsData.settings)
   renderCredentials(savedOptionsData.credentials)
   updateSaveState()
 }
@@ -45,6 +56,7 @@ form?.addEventListener("submit", async event => {
     draftOptionsData
   )
   renderSourceList(savedOptionsData.settings)
+  renderSelectionMode(savedOptionsData.settings)
   renderCredentials(savedOptionsData.credentials)
   showMessage("设置已保存。", "success")
   updateSaveState()
@@ -91,6 +103,13 @@ function renderCredentials(credentials) {
   updateSaveState()
 }
 
+function renderSelectionMode(settings) {
+  const activeValue = settings.selectionSearchMode || "auto"
+  selectionModeInputs.forEach(input => {
+    input.checked = input.value === activeValue
+  })
+}
+
 function getCheckedIds() {
   return [
     ...sourceList.querySelectorAll('input[type="checkbox"]:checked'),
@@ -101,6 +120,7 @@ function getDraftOptionsData() {
   return {
     settings: window.SaladictSettings.normalizeSettings({
       enabledSourceIds: getCheckedIds(),
+      selectionSearchMode: getSelectedSearchMode(),
     }),
     credentials: window.SaladictSettings.normalizeCredentials({
       baidu: {
@@ -111,6 +131,11 @@ function getDraftOptionsData() {
       },
     }),
   }
+}
+
+function getSelectedSearchMode() {
+  const checkedInput = selectionModeInputs.find(input => input.checked)
+  return checkedInput?.value || "auto"
 }
 
 function updateSaveState() {

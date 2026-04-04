@@ -21,6 +21,35 @@
         <p class="section-help">至少保留一个翻译源。</p>
         <form id="settings-form">
           <div id="source-list" class="source-list"></div>
+
+          <section class="selection-card">
+            <h2 class="section-title">网页划词</h2>
+            <p class="section-help">划词后先显示一个小图标，点击后在鼠标附近打开结果面板。</p>
+            <div class="mode-list" role="radiogroup" aria-label="网页划词默认模式">
+              <label class="mode-item" for="selection-mode-auto">
+                <input id="selection-mode-auto" type="radio" name="selection-search-mode" value="auto">
+                <span>
+                  <strong>自动判断</strong>
+                  <small>短英文词语优先查词，其余内容优先翻译。</small>
+                </span>
+              </label>
+              <label class="mode-item" for="selection-mode-lookup">
+                <input id="selection-mode-lookup" type="radio" name="selection-search-mode" value="lookup">
+                <span>
+                  <strong>默认查词</strong>
+                  <small>点击小图标后直接按查词模式打开结果。</small>
+                </span>
+              </label>
+              <label class="mode-item" for="selection-mode-translate">
+                <input id="selection-mode-translate" type="radio" name="selection-search-mode" value="translate">
+                <span>
+                  <strong>默认翻译</strong>
+                  <small>点击小图标后直接按翻译模式打开结果。</small>
+                </span>
+              </label>
+            </div>
+          </section>
+
           <section id="credential-section" class="credential-section" hidden>
             <p class="credential-notice">
               请注意：使用第三方翻译服务 token 所产生的费用、调用次数与额度消耗，均由对应服务平台的账号规则决定，与本插件无关。为避免产生超出预期的消耗，建议您在使用前留意相关平台的计费说明与额度控制情况。

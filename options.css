@@ -66,6 +66,51 @@ body {
   gap: 10px;
 }
 
+.selection-card {
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid #aac4df;
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(227, 239, 252, 0.94) 100%);
+}
+
+.mode-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mode-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #aac4df;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.58);
+  cursor: pointer;
+}
+
+.mode-item input {
+  margin-top: 2px;
+}
+
+.mode-item span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mode-item strong {
+  font-size: 14px;
+}
+
+.mode-item small {
+  color: #537191;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .credential-section {
   margin-top: 16px;
   padding: 14px;

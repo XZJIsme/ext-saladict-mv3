@@ -9,9 +9,10 @@ const AVAILABLE_SOURCES = [
 ]
 
 const DEFAULT_SETTINGS = {
-  version: 3,
+  version: 4,
   enabledSourceIds: AVAILABLE_SOURCES.map(source => source.id),
   defaultPinned: false,
+  selectionSearchMode: "auto",
   mode: {
     direct: false,
   },
@@ -40,9 +41,14 @@ function getValidSourceIds(sourceIds) {
 
 function normalizeSettings(rawSettings) {
   const enabledSourceIds = getValidSourceIds(rawSettings?.enabledSourceIds)
+  const selectionSearchMode =
+    rawSettings?.selectionSearchMode === "lookup" ||
+    rawSettings?.selectionSearchMode === "translate"
+      ? rawSettings.selectionSearchMode
+      : DEFAULT_SETTINGS.selectionSearchMode
 
   return {
-    version: 3,
+    version: 4,
     enabledSourceIds:
       enabledSourceIds.length > 0
         ? enabledSourceIds
@@ -51,6 +57,7 @@ function normalizeSettings(rawSettings) {
       typeof rawSettings?.defaultPinned === "boolean"
         ? rawSettings.defaultPinned
         : DEFAULT_SETTINGS.defaultPinned,
+    selectionSearchMode,
     // Selection auto-popup is intentionally disabled in this fork.
     mode: { direct: false },
     pinMode: { direct: false },
@@ -129,6 +136,7 @@ function isSettingsEqual(left, right) {
 
   return (
     normalizedLeft.defaultPinned === normalizedRight.defaultPinned &&
+    normalizedLeft.selectionSearchMode === normalizedRight.selectionSearchMode &&
     normalizedLeft.mode.direct === normalizedRight.mode.direct &&
     normalizedLeft.pinMode.direct === normalizedRight.pinMode.direct &&
     normalizedLeft.enabledSourceIds.every((id, index) => {
