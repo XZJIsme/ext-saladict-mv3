@@ -1046,7 +1046,7 @@ function applySettings(settings) {
     translationLabels.length > 0
       ? isPinnedState
         ? "当前为锁定面板，可保持打开"
-        : "按回车会自动决定：24 字以内的英文短词/短语查词，其余内容翻译"
+        : "回车可自动翻译或查词；如需指定，请点击按钮。"
       : "请先到设置页启用翻译源。"
   )
   setNodeText(
