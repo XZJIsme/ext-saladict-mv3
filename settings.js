@@ -11,6 +11,7 @@ const AVAILABLE_SOURCES = [
 const AVAILABLE_THEMES = [
   { id: "viista", label: "WindovvViista" },
   { id: "mojavv", label: "Mojavv" },
+  { id: "flatwhite", label: "Flatwhite" },
 ]
 
 const DEFAULT_SETTINGS = {

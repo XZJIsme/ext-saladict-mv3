@@ -6,6 +6,8 @@ const hintText = document.querySelector("#hint-text")
 const translateBtn = document.querySelector("#translate-btn")
 const wordwebBtn = document.querySelector("#wordweb-btn")
 const pinBtn = document.querySelector("#pin-btn")
+const settingsBtn = document.querySelector(".settings-btn")
+const closeBtn = document.querySelector(".close-btn")
 const {
   openOptionsPage,
   openUrl,
@@ -1058,8 +1060,97 @@ function applySettings(settings) {
 }
 
 function applyTheme(theme) {
-  const nextTheme = theme === "mojavv" ? "mojavv" : "viista"
+  const nextTheme =
+    theme === "mojavv" || theme === "flatwhite" ? theme : "viista"
   document.body.dataset.theme = nextTheme
+  applyThemeControlOverrides(nextTheme)
+}
+
+function applyThemeControlOverrides(theme) {
+  const controls = [
+    input,
+    translateBtn,
+    wordwebBtn,
+    pinBtn,
+    settingsBtn,
+    closeBtn,
+  ].filter(Boolean)
+
+  for (const control of controls) {
+    if (!(control instanceof HTMLElement)) {
+      continue
+    }
+
+    if (theme === "mojavv" || theme === "flatwhite") {
+      if (theme === "mojavv" && control === closeBtn) {
+        control.style.setProperty("border-color", "rgba(208, 72, 63, 0.24)", "important")
+        control.style.setProperty("background", "linear-gradient(180deg, #ff7673 0%, #ff605c 100%)", "important")
+        control.style.setProperty("background-color", "#ff605c", "important")
+        control.style.setProperty("background-image", "none", "important")
+        control.style.setProperty("box-shadow", "none", "important")
+        control.style.setProperty("-webkit-box-shadow", "none", "important")
+        control.style.setProperty("appearance", "none", "important")
+        control.style.setProperty("-webkit-appearance", "none", "important")
+        control.style.setProperty("color", "#ffffff", "important")
+        control.style.setProperty("text-shadow", "0 -1px 0 rgba(153, 39, 34, 0.45)", "important")
+      } else {
+        control.style.setProperty("border-color", "rgba(31, 35, 40, 0.08)", "important")
+        control.style.setProperty("background", "#ffffff", "important")
+        control.style.setProperty("background-color", "#ffffff", "important")
+        control.style.setProperty("background-image", "none", "important")
+        control.style.setProperty("box-shadow", "none", "important")
+        control.style.setProperty("-webkit-box-shadow", "none", "important")
+        control.style.setProperty("appearance", "none", "important")
+        control.style.setProperty("-webkit-appearance", "none", "important")
+        control.style.setProperty("color", "#1f2328", "important")
+        control.style.setProperty("text-shadow", "none", "important")
+      }
+    } else {
+      control.style.removeProperty("border-color")
+      control.style.removeProperty("background")
+      control.style.removeProperty("background-color")
+      control.style.removeProperty("background-image")
+      control.style.removeProperty("box-shadow")
+      control.style.removeProperty("-webkit-box-shadow")
+      control.style.removeProperty("appearance")
+      control.style.removeProperty("-webkit-appearance")
+      control.style.removeProperty("color")
+      control.style.removeProperty("text-shadow")
+    }
+  }
+
+  if (input instanceof HTMLElement) {
+    if (theme === "mojavv" || theme === "flatwhite") {
+      input.style.setProperty("background", "#ffffff", "important")
+      input.style.setProperty("background-color", "#ffffff", "important")
+      input.style.setProperty("background-image", "none", "important")
+      input.style.setProperty("box-shadow", "none", "important")
+      input.style.setProperty("-webkit-box-shadow", "none", "important")
+    } else {
+      input.style.removeProperty("border-color")
+      input.style.removeProperty("background")
+      input.style.removeProperty("background-color")
+      input.style.removeProperty("background-image")
+      input.style.removeProperty("box-shadow")
+      input.style.removeProperty("-webkit-box-shadow")
+    }
+  }
+
+  if (theme === "mojavv" || theme === "flatwhite") {
+    if (pinBtn instanceof HTMLElement && pinBtn.classList.contains("is-active")) {
+      pinBtn.style.setProperty("background", "#f4f4f4", "important")
+      pinBtn.style.setProperty("background-color", "#f4f4f4", "important")
+      pinBtn.style.setProperty("background-image", "none", "important")
+      pinBtn.style.setProperty("box-shadow", "none", "important")
+      pinBtn.style.setProperty("-webkit-box-shadow", "none", "important")
+    }
+  } else if (pinBtn instanceof HTMLElement) {
+    pinBtn.style.removeProperty("background")
+    pinBtn.style.removeProperty("background-color")
+    pinBtn.style.removeProperty("background-image")
+    pinBtn.style.removeProperty("box-shadow")
+    pinBtn.style.removeProperty("-webkit-box-shadow")
+  }
 }
 
 function handleEmbeddedMessage(event) {

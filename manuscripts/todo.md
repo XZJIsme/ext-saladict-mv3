@@ -19,5 +19,6 @@
 - [x] 参考旧项目的 pinned 逻辑，在 MV3 里增加“锁定”入口；点击后切换到可保持打开的独立扩展窗口，并显示明确的锁定状态。
 - [ ] 计划多语言支持，至少展示界面里的文案可以切换成其他目标语言。
 - [x] 翻译结果支持收起某个源。
-- [ ] 增加多主题设置（WindovvViista、Mojavv）。
+- [x] 增加多主题设置（WindovvViista、Mojavv）。
 - [ ] 增加其它主题（Snow、Nori、Ocean、Violet、Bacon、Coffee、Sakura）。
+- [ ] Dark 模式（Midnight、Blackcoffee）。

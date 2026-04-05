@@ -46,6 +46,9 @@ form?.addEventListener("change", event => {
     target.name === "selection-search-mode" ||
     target.name === "theme"
   ) {
+    if (target.name === "theme") {
+      applyTheme(target.value)
+    }
     showMessage("", "")
     updateSaveState()
   }
@@ -175,7 +178,8 @@ function updateSaveState() {
 }
 
 function applyTheme(theme) {
-  document.body.dataset.theme = theme === "mojavv" ? "mojavv" : "viista"
+  document.body.dataset.theme =
+    theme === "mojavv" || theme === "flatwhite" ? theme : "viista"
 }
 
 function getTokenValue(sourceId) {

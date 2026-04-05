@@ -103,8 +103,8 @@ body[data-theme="mojavv"] {
 
 .pin-btn img {
   display: block;
-  width: 15px;
-  height: 15px;
+  width: 13px;
+  height: 13px;
   margin: 0 auto;
   opacity: 0.8;
 }
@@ -173,26 +173,32 @@ body[data-theme="mojavv"] {
 }
 
 .sentence-input {
+  all: unset;
   flex: 1;
   width: 100%;
   box-sizing: border-box;
   padding: 8px 10px;
   border: 1px solid #7d9ebf;
   border-radius: 6px;
-  background:
-    linear-gradient(180deg, #ffffff 0%, #eef6fe 100%);
+  background: #ffffff;
   color: #1d3652;
-  box-shadow:
-    inset 0 1px 2px rgba(103, 134, 170, 0.18),
-    0 1px 0 rgba(255, 255, 255, 0.85);
+  display: block;
+  font: inherit;
+  line-height: 1.4;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: none;
+  background-color: #ffffff;
+  background-clip: padding-box;
 }
 
 .sentence-input:focus {
   outline: none;
   border-color: #5d8dc1;
-  box-shadow:
-    inset 0 1px 2px rgba(83, 118, 158, 0.2),
-    0 0 0 2px rgba(132, 184, 238, 0.25);
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
 }
 
 .translate-btn {
@@ -272,9 +278,12 @@ body[data-theme="mojavv"] .dictYoudao-Discrimination_Title {
 
 body[data-theme="mojavv"] .sentence-input,
 body[data-theme="mojavv"] .translate-btn,
-body[data-theme="mojavv"] .pin-btn {
+body[data-theme="mojavv"] .pin-btn,
+body[data-theme="mojavv"] .settings-btn {
   border-color: rgba(20, 24, 28, 0.12);
   background: #ffffff;
+  background-color: #ffffff;
+  background-image: none;
   color: #1f2328;
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.85),
@@ -286,12 +295,34 @@ body[data-theme="mojavv"] .sentence-input::placeholder {
 }
 
 body[data-theme="mojavv"] .translate-btn:active,
-body[data-theme="mojavv"] .pin-btn:active {
-  background: linear-gradient(180deg, #e5e9ef 0%, #f4f6f8 100%);
+body[data-theme="mojavv"] .pin-btn:active,
+body[data-theme="mojavv"] .settings-btn:active {
+  background: #ffffff;
+  background-color: #ffffff;
+  background-image: none;
+  box-shadow:
+    inset 0 1px 1px rgba(26, 35, 45, 0.08),
+    0 1px 0 rgba(255, 255, 255, 0.72),
+    0 4px 10px rgba(26, 35, 45, 0.06);
 }
 
 body[data-theme="mojavv"] .translate-btn img,
 body[data-theme="mojavv"] .pin-btn img {
+  filter: none;
+}
+
+body[data-theme="mojavv"] .pin-btn.is-active {
+  border-color: rgba(20, 24, 28, 0.12);
+  background: #f4f4f4;
+  background-color: #f4f4f4;
+  background-image: none;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.85),
+    0 6px 14px rgba(26, 35, 45, 0.08);
+}
+
+body[data-theme="mojavv"] .pin-btn.is-active img {
+  opacity: 1;
   filter: none;
 }
 
@@ -305,6 +336,156 @@ body[data-theme="mojavv"] .result-link--primary {
 
 body[data-theme="mojavv"] .result-card::before {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0) 100%);
+}
+
+body[data-theme="flatwhite"] {
+  background: #ffffff;
+  color: #1f2328;
+}
+
+body[data-theme="flatwhite"] .window-titlebar,
+body[data-theme="flatwhite"] .window-body,
+body[data-theme="flatwhite"] .group-box,
+body[data-theme="flatwhite"] .result-card {
+  border-color: rgba(20, 24, 28, 0.08);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+body[data-theme="flatwhite"] .window-titlebar::before,
+body[data-theme="flatwhite"] .result-card::before {
+  background: none;
+}
+
+body[data-theme="flatwhite"] .window-title,
+body[data-theme="flatwhite"] .input-label,
+body[data-theme="flatwhite"] .result-title,
+body[data-theme="flatwhite"] .dictYoudao-Title,
+body[data-theme="flatwhite"] .dictYoudao-Pattern,
+body[data-theme="flatwhite"] .dictYoudao-Rank {
+  color: #1f2328;
+  text-shadow: none;
+}
+
+body[data-theme="flatwhite"] .window-subtitle,
+body[data-theme="flatwhite"] .hint-text,
+body[data-theme="flatwhite"] .result-meta,
+body[data-theme="flatwhite"] .dictYoudao-HeaderContainer,
+body[data-theme="flatwhite"] .dictYoudao-Discrimination_Title {
+  color: #5f6772;
+}
+
+body[data-theme="flatwhite"] .sentence-input,
+body[data-theme="flatwhite"] .translate-btn,
+body[data-theme="flatwhite"] .pin-btn,
+body[data-theme="flatwhite"] .settings-btn,
+body[data-theme="flatwhite"] .close-btn {
+  border-color: rgba(31, 35, 40, 0.08);
+  background: #ffffff;
+  background-color: #ffffff;
+  background-image: none;
+  color: #1f2328;
+  text-shadow: none;
+  box-shadow: none;
+  -webkit-box-shadow: none;
+}
+
+body[data-theme="flatwhite"] .translate-btn,
+body[data-theme="flatwhite"] .pin-btn {
+  box-shadow: none;
+}
+
+body[data-theme="flatwhite"] .sentence-input:focus {
+  border-color: rgba(31, 35, 40, 0.16);
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+}
+
+body[data-theme="flatwhite"] .sentence-input::placeholder {
+  color: #9aa1aa;
+}
+
+body[data-theme="flatwhite"] .translate-btn img,
+body[data-theme="flatwhite"] .pin-btn img {
+  filter: none;
+}
+
+body[data-theme="flatwhite"] .translate-btn:hover,
+body[data-theme="flatwhite"] .pin-btn:hover,
+body[data-theme="flatwhite"] .settings-btn:hover,
+body[data-theme="flatwhite"] .close-btn:hover {
+  background: #ffffff;
+  background-color: #ffffff;
+  background-image: none;
+}
+
+body[data-theme="flatwhite"] .translate-btn:active,
+body[data-theme="flatwhite"] .pin-btn:active,
+body[data-theme="flatwhite"] .settings-btn:active,
+body[data-theme="flatwhite"] .close-btn:active {
+  transform: translateY(1px);
+  background: #ffffff;
+  background-color: #ffffff;
+  background-image: none;
+}
+
+body[data-theme="flatwhite"] .pin-btn.is-active {
+  border-color: rgba(20, 24, 28, 0.08);
+  background: #f4f4f4;
+  background-color: #f4f4f4;
+  background-image: none;
+  box-shadow: none;
+}
+
+body[data-theme="flatwhite"] .pin-btn.is-active img {
+  opacity: 1;
+  filter: none;
+}
+
+body[data-theme="flatwhite"] .result-link {
+  color: #2f67c7;
+}
+
+body[data-theme="flatwhite"] .result-link--primary {
+  color: #1f2328;
+}
+
+body[data-theme="flatwhite"] .settings-btn {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-width: 30px;
+  height: 24px;
+  padding: 0 12px;
+  border: 1px solid rgba(31, 35, 40, 0.08) !important;
+  border-radius: 8px;
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  color: #1f2328;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+}
+
+body[data-theme="flatwhite"] .close-btn {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: #1f2328;
+  border-color: rgba(31, 35, 40, 0.08) !important;
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  border-radius: 50%;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
 }
 
 .results {
@@ -379,6 +560,8 @@ body[data-theme="mojavv"] .translate-btn:hover,
 body[data-theme="mojavv"] .pin-btn:hover {
   border-color: rgba(41, 89, 181, 0.24);
   background: #ffffff;
+  background-color: #ffffff;
+  background-image: none;
 }
 
 body[data-theme="mojavv"] .translate-btn:active,
@@ -386,6 +569,22 @@ body[data-theme="mojavv"] .pin-btn:active {
   transform: translateY(1px);
   box-shadow:
     inset 0 1px 2px rgba(26, 35, 45, 0.12);
+}
+
+body[data-theme="mojavv"] .sentence-input {
+  background: #ffffff;
+  background-color: #ffffff;
+  background-image: none;
+  box-shadow: none;
+  -webkit-box-shadow: none;
+}
+
+body[data-theme="mojavv"] .sentence-input:focus {
+  background: #ffffff;
+  background-color: #ffffff;
+  background-image: none;
+  box-shadow: none;
+  -webkit-box-shadow: none;
 }
 
 .result-actions {
@@ -808,7 +1007,7 @@ body[data-theme="mojavv"] .close-btn {
 }
 
 body[data-theme="mojavv"] .settings-btn {
-  min-width: 48px;
+  min-width: 30px;
   padding: 0 12px;
   font-size: 12px;
   font-weight: 600;
@@ -817,6 +1016,7 @@ body[data-theme="mojavv"] .settings-btn {
 
 body[data-theme="mojavv"] .close-btn {
   width: 24px;
+  height: 24px;
   padding: 0;
   font-size: 15px;
   line-height: 1;
@@ -824,6 +1024,7 @@ body[data-theme="mojavv"] .close-btn {
   background: linear-gradient(180deg, #ff7673 0%, #ff605c 100%);
   color: #ffffff;
   text-shadow: 0 -1px 0 rgba(153, 39, 34, 0.45);
+  border-radius: 50%;
 }
 
 body[data-theme="mojavv"] .settings-btn:hover {
