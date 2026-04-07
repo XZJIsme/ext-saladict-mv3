@@ -18,7 +18,8 @@
     "https://fanyi-api.baidu.com/*",
     "https://fanyi.caiyunapp.com/*",
     "https://api.interpreter.caiyunai.com/*",
-    "https://dict.youdao.com/*"
+    "https://dict.youdao.com/*",
+    "https://cn.bing.com/*"
   ],
   "content_scripts": [
     {

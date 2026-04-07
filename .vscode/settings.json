@@ -1,0 +1,10 @@
+{
+  "files.exclude": {
+    "**/.DS_Store": true,
+    "**/._*": true
+  },
+  "search.exclude": {
+    "**/.DS_Store": true,
+    "**/._*": true
+  }
+}

@@ -57,7 +57,27 @@
             <p id="hint-text" class="hint-text">正在加载翻译源设置...</p>
           </div>
 
-          <div id="status-line" class="status-line">正在加载设置...</div>
+          <div class="status-row">
+            <div id="status-line" class="status-line">正在加载设置...</div>
+            <button
+              id="expand-all-btn"
+              class="status-action-btn"
+              type="button"
+              data-action="expand-all"
+              disabled
+            >
+              全部展开
+            </button>
+            <button
+              id="collapse-all-btn"
+              class="status-action-btn"
+              type="button"
+              data-action="collapse-all"
+              disabled
+            >
+              全部收起
+            </button>
+          </div>
           <section id="results" class="results" aria-live="polite"></section>
         </section>
       </section>

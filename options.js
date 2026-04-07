@@ -92,6 +92,7 @@ function renderSourceList(settings, credentials) {
       const checked = settings.enabledSourceIds.includes(source.id)
         ? "checked"
         : ""
+      const hint = getSourceHint(source.id)
       const tokenMarkup = renderSourceTokenField(source.id, credentials)
 
       return `
@@ -100,7 +101,7 @@ function renderSourceList(settings, credentials) {
             <input id="source-${source.id}" type="checkbox" value="${escapeAttr(source.id)}" ${checked}>
             <label for="source-${source.id}">
               <strong>${escapeHtml(source.label)}</strong>
-              <span class="source-hint">未启用时也可先填写对应 token。</span>
+              <span class="source-hint">${escapeHtml(hint)}</span>
             </label>
           </div>
           ${tokenMarkup}
@@ -108,6 +109,18 @@ function renderSourceList(settings, credentials) {
       `
     }
   ).join("")
+}
+
+function getSourceHint(sourceId) {
+  if (sourceId === "baidu") {
+    return "未启用时也可先填写对应 token。可前往 https://fanyi-api.baidu.com/ 获取百度翻译 token（有免费额度，实际以百度翻译平台的说明为准），输入格式为 appid:密钥，获取路径：百度翻译开放平台 → 管理控制台 → 开发者中心 → 开发者信息 → 申请信息；此步骤仅供参考，具体以百度翻译平台的实际流程为准。"
+  }
+
+  if (sourceId === "caiyun") {
+    return "未启用时也可先填写对应 token。彩云翻译同样提供免费额度（实际以彩云翻译平台的说明为准），可前往 https://platform.caiyunapp.com/regist 注册开通。"
+  }
+
+  return "未启用时也可先填写对应 token。"
 }
 
 function renderTheme(settings) {

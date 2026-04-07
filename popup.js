@@ -6,6 +6,8 @@ const hintText = document.querySelector("#hint-text")
 const translateBtn = document.querySelector("#translate-btn")
 const wordwebBtn = document.querySelector("#wordweb-btn")
 const pinBtn = document.querySelector("#pin-btn")
+const expandAllBtn = document.querySelector("#expand-all-btn")
+const collapseAllBtn = document.querySelector("#collapse-all-btn")
 const settingsBtn = document.querySelector(".settings-btn")
 const closeBtn = document.querySelector(".close-btn")
 const {
@@ -27,6 +29,7 @@ let activeTranslationSourceConfigs = []
 let activeCredentials = window.SaladictSettings.DEFAULT_CREDENTIALS
 let currentRunId = 0
 const collapsedSourceIds = new Set()
+const expandedBingSenseExampleKeys = new Set()
 let lastSettledResults = []
 let currentViewMode = "idle"
 let lastRenderedText = ""
@@ -57,6 +60,125 @@ function syncPinButtonState() {
   pinBtn.classList.toggle("is-active", isPinnedState)
   pinBtn.setAttribute("aria-pressed", isPinnedState ? "true" : "false")
   pinBtn.title = isPinnedState ? "当前已锁定" : "锁定并保持打开"
+}
+
+function getVisibleCardSourceIds(mode, translationEntries = null) {
+  if (mode === "translate") {
+    const entries =
+      Array.isArray(translationEntries) && translationEntries.length > 0
+        ? translationEntries
+        : getTranslationSourceEntries()
+
+    return entries
+      .filter(entry => entry?.enabled && entry?.source?.id)
+      .map(entry => entry.source.id)
+  }
+
+  if (mode === "lookup") {
+    return getActiveConfigsForMode(mode).map(source => source.id)
+  }
+
+  return []
+}
+
+function syncBatchToggleButtonState(button, enabled, title) {
+  if (!button) {
+    return
+  }
+
+  button.disabled = !enabled
+  button.setAttribute("aria-disabled", button.disabled ? "true" : "false")
+  button.title = title
+}
+
+function syncCollapseButtonsState(translationEntries = null) {
+  const visibleSourceIds = getVisibleCardSourceIds(
+    currentViewMode,
+    translationEntries
+  )
+  const canExpandAll = visibleSourceIds.some(sourceId =>
+    collapsedSourceIds.has(sourceId)
+  )
+  const canCollapseAll = visibleSourceIds.some(
+    sourceId => !collapsedSourceIds.has(sourceId)
+  )
+
+  syncBatchToggleButtonState(
+    expandAllBtn,
+    canExpandAll,
+    canExpandAll ? "展开当前所有结果" : "当前没有可展开的结果"
+  )
+  syncBatchToggleButtonState(
+    collapseAllBtn,
+    canCollapseAll,
+    canCollapseAll ? "收起当前所有结果" : "当前没有可收起的结果"
+  )
+}
+
+function collapseAllVisibleCards() {
+  const visibleSourceIds = getVisibleCardSourceIds(
+    currentViewMode,
+    activeTranslationEntriesSnapshot
+  )
+
+  if (visibleSourceIds.length <= 0) {
+    syncCollapseButtonsState(activeTranslationEntriesSnapshot)
+    return
+  }
+
+  let changed = false
+  for (const sourceId of visibleSourceIds) {
+    if (!collapsedSourceIds.has(sourceId)) {
+      collapsedSourceIds.add(sourceId)
+      changed = true
+    }
+  }
+
+  syncCollapseButtonsState(activeTranslationEntriesSnapshot)
+
+  if (!changed || !lastRenderedText) {
+    return
+  }
+
+  renderCards(
+    lastRenderedText,
+    currentViewMode,
+    lastSettledResults,
+    activeTranslationEntriesSnapshot
+  )
+}
+
+function expandAllVisibleCards() {
+  const visibleSourceIds = getVisibleCardSourceIds(
+    currentViewMode,
+    activeTranslationEntriesSnapshot
+  )
+
+  if (visibleSourceIds.length <= 0) {
+    syncCollapseButtonsState(activeTranslationEntriesSnapshot)
+    return
+  }
+
+  let changed = false
+  for (const sourceId of visibleSourceIds) {
+    if (collapsedSourceIds.has(sourceId)) {
+      collapsedSourceIds.delete(sourceId)
+      changed = true
+    }
+  }
+
+  syncCollapseButtonsState(activeTranslationEntriesSnapshot)
+
+  if (!changed || !lastRenderedText) {
+    return
+  }
+
+  renderCards(
+    lastRenderedText,
+    currentViewMode,
+    lastSettledResults,
+    activeTranslationEntriesSnapshot
+  )
 }
 
 const TRANSLATION_SOURCE_CONFIGS = [
@@ -102,12 +224,27 @@ const TRANSLATION_SOURCE_CONFIGS = [
 const DICTIONARY_SOURCE_CONFIGS = [
   {
     id: "collins_youdao",
-    label: "柯林斯英汉双解",
+    label: "有道词典",
     href: text =>
       `https://dict.youdao.com/w/${encodeURIComponent(
         String(text || "").replace(/\s+/g, " ").trim()
       )}`,
     lookup: lookupWithYoudaoCollins,
+  },
+  {
+    id: "bing",
+    label: "必应词典",
+    href: text =>
+      `https://cn.bing.com/dict/search?q=${encodeURIComponent(
+        String(text || "").replace(/\s+/g, " ").trim()
+      )}`,
+    lookup: lookupWithBing,
+  },
+  {
+    id: "cambridge",
+    label: "剑桥词典",
+    href: text => getCambridgeSrcPage(text),
+    lookup: lookupWithCambridge,
   },
 ]
 
@@ -203,6 +340,38 @@ document.addEventListener("keydown", event => {
 })
 
 results?.addEventListener("click", event => {
+  const cambridgeToggle = event.target.closest?.(".js-accord, .daccord_h")
+  if (cambridgeToggle && cambridgeToggle.closest?.(".dictCambridge-Entry")) {
+    event.preventDefault()
+    if (cambridgeToggle.classList.contains("js-accord")) {
+      cambridgeToggle.classList.toggle("open")
+    }
+
+    if (cambridgeToggle.classList.contains("daccord_h")) {
+      cambridgeToggle.parentElement?.classList.toggle("open")
+    }
+    return
+  }
+
+  const bingSenseToggle = event.target.closest?.(
+    "[data-action='toggle-bing-sense-examples']"
+  )
+  if (bingSenseToggle) {
+    const senseKey = bingSenseToggle.getAttribute("data-bing-sense-key")
+    if (!senseKey) {
+      return
+    }
+
+    if (expandedBingSenseExampleKeys.has(senseKey)) {
+      expandedBingSenseExampleKeys.delete(senseKey)
+    } else {
+      expandedBingSenseExampleKeys.add(senseKey)
+    }
+
+    renderCards(lastRenderedText, currentViewMode, lastSettledResults)
+    return
+  }
+
   const collapseBtn = event.target.closest?.("[data-action='toggle-collapse']")
   if (collapseBtn) {
     const sourceId = collapseBtn.getAttribute("data-source-id")
@@ -233,9 +402,11 @@ results?.addEventListener("click", event => {
     return
   }
 
-  const speakerBtn = event.target.closest?.(".saladict-Speaker[data-audio-url]")
+  const speakerBtn = event.target.closest?.(".saladict-Speaker")
   if (speakerBtn) {
-    const url = speakerBtn.getAttribute("data-audio-url")
+    const url =
+      speakerBtn.getAttribute("data-audio-url") ||
+      normalizeSpeakerHref(speakerBtn.getAttribute("href"))
     if (!url) {
       return
     }
@@ -330,6 +501,14 @@ wordwebBtn?.addEventListener("click", () => {
   runSearch(input.value.trim(), "lookup")
 })
 
+expandAllBtn?.addEventListener("click", () => {
+  expandAllVisibleCards()
+})
+
+collapseAllBtn?.addEventListener("click", () => {
+  collapseAllVisibleCards()
+})
+
 if (isEmbeddedPanel) {
   window.addEventListener("message", handleEmbeddedMessage)
   window.addEventListener("mouseup", handleEmbeddedDragEnd, true)
@@ -356,6 +535,14 @@ async function initPopup() {
     }
 
     renderCards("", "idle")
+
+    if (!isEmbeddedPanel) {
+      requestAnimationFrame(() => {
+        if (input instanceof HTMLInputElement) {
+          input.focus({ preventScroll: true })
+        }
+      })
+    }
   } catch (error) {
     setNodeText(
       statusLine,
@@ -581,6 +768,7 @@ function renderCards(
 
   if (mode === "idle") {
     results.innerHTML = ""
+    syncCollapseButtonsState([])
     return
   }
 
@@ -640,7 +828,7 @@ function renderCards(
           : `<button class="result-link result-link--primary" type="button" data-action="temporary-enable-source" data-source-id="${escapeAttr(source.id)}">临时启用此源</button>`
 
         return `
-          <article class="${cardClassWithEmpty}">
+          <article class="${cardClassWithEmpty}" data-source-id="${escapeAttr(source.id)}">
             <div class="result-head">
               <div class="result-title">${escapeHtml(source.label)}</div>
               <div class="result-actions">
@@ -658,6 +846,7 @@ function renderCards(
         `
       })
       .join("")
+    syncCollapseButtonsState(visibleTranslationEntries)
     return
   }
 
@@ -693,7 +882,7 @@ function renderCards(
       const audioActions = buildAudioActions(result.audio, result)
 
       return `
-        <article class="${cardClassWithEmpty}">
+        <article class="${cardClassWithEmpty}" data-source-id="${escapeAttr(source.id)}">
           <div class="result-head">
             <div class="result-title">${escapeHtml(source.label)}</div>
             <div class="result-actions">
@@ -710,6 +899,7 @@ function renderCards(
       `
     })
     .join("")
+  syncCollapseButtonsState()
 }
 
 function renderResultBody(source, result) {
@@ -729,6 +919,22 @@ function renderResultBody(source, result) {
     return `
       <div class="result-body result-body-rich">
         <div class="dictYoudao-Related">${result.data.html}</div>
+      </div>
+    `
+  }
+
+  if (result.kind === "cambridge" && result.data?.entries) {
+    return `
+      <div class="result-body result-body-rich">
+        ${renderCambridgeDictionaryBody(result.data)}
+      </div>
+    `
+  }
+
+  if (result.kind === "bing" && result.data) {
+    return `
+      <div class="result-body result-body-rich">
+        ${renderBingDictionaryBody(result.data)}
       </div>
     `
   }
@@ -851,6 +1057,228 @@ function renderYoudaoDictionaryBody(sourceId, data) {
     sentenceMarkup,
     translationMarkup,
   ].join("")
+}
+
+function renderCambridgeDictionaryBody(data) {
+  const entries = Array.isArray(data?.entries) ? data.entries : []
+  return entries
+    .map((entry, index) => {
+      const entryId = escapeAttr(entry.id || `d-cambridge-entry${index}`)
+      const extraClass = entry.isRelated ? " dictCambridge-Entry--related" : ""
+      return `
+        <section class="dictCambridge-Entry${extraClass}" id="${entryId}">
+          ${entry.html || ""}
+        </section>
+      `
+    })
+    .join("")
+}
+
+function renderBingDictionaryBody(data) {
+  if (!data || typeof data !== "object") {
+    return ""
+  }
+
+  const senseGroups = Array.isArray(data.senses) ? data.senses : []
+  if (data.type === "machine" && data.mt) {
+    return `<p>${escapeHtml(data.mt)}</p>`
+  }
+
+  if (data.type === "related") {
+    const defs = Array.isArray(data.defs) ? data.defs : []
+    return `
+      <h1 class="dictBing-Related_Title">${escapeHtml(data.title || "")}</h1>
+      ${defs
+        .map(def => `
+          <h2 class="dictBing-Related_Title">${escapeHtml(def.title || "")}</h2>
+          <ul>
+            ${(Array.isArray(def.meanings) ? def.meanings : [])
+              .map(meaning => `
+                <li class="dictBing-Related_Meaning">
+                  <a
+                    class="dictBing-Related_Meaning_Word"
+                    target="_blank"
+                    rel="nofollow noopener noreferrer"
+                    href="${escapeAttr(meaning.href || "#")}"
+                  >${escapeHtml(meaning.word || "")}</a>
+                  <span class="dictBing-Related_Meaning_Def">${escapeHtml(meaning.def || "")}</span>
+                </li>
+              `)
+              .join("")}
+          </ul>
+        `)
+        .join("")}
+    `
+  }
+
+  if (data.type !== "lex") {
+    return ""
+  }
+
+  const phsym = Array.isArray(data.phsym) ? data.phsym : []
+  const cdef = senseGroups.length > 0 ? [] : Array.isArray(data.cdef) ? data.cdef : []
+  const infs = Array.isArray(data.infs) ? data.infs : []
+  const sentences = Array.isArray(data.sentences) ? data.sentences : []
+
+  return `
+    <h1 class="dictBing-Title">${escapeHtml(data.title || "")}</h1>
+
+    ${phsym.length > 0
+      ? `
+      <ul class="dictBing-Phsym">
+        ${phsym
+          .map(item => `
+            <li class="dictBing-PhsymItem">
+              ${escapeHtml(item.lang || "")}
+              ${renderSpeakerMarkup(item.pron || "")}
+            </li>
+          `)
+          .join("")}
+      </ul>
+    `
+      : ""}
+
+    ${cdef.length > 0
+      ? `
+      <ul class="dictBing-Cdef">
+        ${cdef
+          .map(item => `
+            <li class="dictBing-CdefItem">
+              <span class="dictBing-CdefItem_Pos">${escapeHtml(item.pos || "")}</span>
+              <span class="dictBing-CdefItem_Def">${escapeHtml(item.def || "")}</span>
+            </li>
+          `)
+          .join("")}
+      </ul>
+    `
+      : ""}
+
+    ${senseGroups.length > 0
+      ? `
+      <div class="dictBing-SenseBlock">
+        <h2 class="dictBing-Related_Title">权威英汉双解</h2>
+        ${senseGroups
+          .map((group, groupIndex) => {
+            const groupPos = String(group.pos || "").trim()
+            const senses = Array.isArray(group.senses) ? group.senses : []
+            return `
+              <div class="dictBing-SenseGroup">
+                ${groupPos
+                  ? `<div class="dictBing-SensePos">${escapeHtml(groupPos)}</div>`
+                  : ""}
+                <ol class="dictBing-SenseList">
+                  ${senses
+                    .map((item, senseIndex) => {
+                      const senseKey = getBingSenseExampleKey(
+                        data.title || "",
+                        groupPos,
+                        groupIndex,
+                        senseIndex,
+                        item
+                      )
+                      const hasExamples =
+                        Array.isArray(item.examples) && item.examples.length > 0
+                      const examplesOpen =
+                        expandedBingSenseExampleKeys.has(senseKey)
+                      return `
+                        <li class="dictBing-SenseItem${examplesOpen ? " is-open" : ""}" data-bing-sense-key="${escapeAttr(senseKey)}">
+                          <div class="dictBing-SenseNum">${escapeHtml(item.num || "")}</div>
+                          <div class="dictBing-SenseBody">
+                            <div class="dictBing-SenseHeadLine">
+                              ${item.titleCn
+                                ? `<span class="dictBing-SenseHeadCn">${escapeHtml(item.titleCn)}</span>`
+                                : ""}
+                              ${item.titleEn
+                                ? `<span class="dictBing-SenseHeadEn">${escapeHtml(item.titleEn)}</span>`
+                                : ""}
+                            </div>
+                            <div class="dictBing-SenseDefLine">
+                              ${item.defGra
+                                ? `<span class="dictBing-SenseGra">${escapeHtml(item.defGra)}</span>`
+                                : ""}
+                              ${item.defCn
+                                ? `<span class="dictBing-SenseDefCn">${escapeHtml(item.defCn)}</span>`
+                                : ""}
+                              ${item.defEn
+                                ? `<span class="dictBing-SenseDefEn">${escapeHtml(item.defEn)}</span>`
+                                : ""}
+                            </div>
+                            ${hasExamples
+                              ? `
+                              <button
+                                class="dictBing-SenseToggle result-link"
+                                type="button"
+                                data-action="toggle-bing-sense-examples"
+                                data-bing-sense-key="${escapeAttr(senseKey)}"
+                              >${examplesOpen ? "收起例句" : "展开例句"}</button>
+                            `
+                              : ""}
+                            ${hasExamples
+                              ? `
+                              <div class="dictBing-SenseExamples${examplesOpen ? " is-open" : ""}">
+                                ${item.examples
+                                  .map(example => `
+                                    <div class="dictBing-SenseExample">
+                                      ${example.en
+                                        ? `<div class="dictBing-SenseExampleEn">${escapeHtml(example.en)}</div>`
+                                        : ""}
+                                      ${example.cn
+                                        ? `<div class="dictBing-SenseExampleCn">${escapeHtml(example.cn)}</div>`
+                                        : ""}
+                                    </div>
+                                  `)
+                                  .join("")}
+                              </div>
+                            `
+                              : ""}
+                          </div>
+                        </li>
+                      `
+                    })
+                    .join("")}
+                </ol>
+              </div>
+            `
+          })
+          .join("")}
+      </div>
+    `
+      : ""}
+
+    ${infs.length > 0
+      ? `
+      <ul class="dictBing-Inf">
+        <li>词形：</li>
+        ${infs
+          .map(item => `<li class="dictBing-InfItem">${escapeHtml(item)}</li>`)
+          .join("")}
+      </ul>
+    `
+      : ""}
+
+    ${sentences.length > 0
+      ? `
+      <ol class="dictBing-SentenceList">
+        ${sentences
+          .map(item => `
+            <li class="dictBing-SentenceItem">
+              ${item.en
+                ? `
+                <p>
+                  <span>${item.en}</span>
+                  ${renderSpeakerMarkup(item.mp3 || "")}
+                </p>
+              `
+                : ""}
+              ${item.chs ? `<p>${item.chs}</p>` : ""}
+              ${item.source ? `<footer class="dictBing-SentenceSource">${escapeHtml(item.source)}</footer>` : ""}
+            </li>
+          `)
+          .join("")}
+      </ol>
+    `
+      : ""}
+  `
 }
 
 function renderEntryBox(title, content, className = "") {
@@ -1057,6 +1485,7 @@ function applySettings(settings) {
         : statusLine?.textContent || ""
       : "当前没有启用的翻译源。"
   )
+  syncCollapseButtonsState(activeTranslationEntriesSnapshot)
 }
 
 function applyTheme(theme) {
@@ -1546,6 +1975,51 @@ async function lookupWithYoudaoCollins(text) {
   return parseYoudaoCollinsDocument(doc, normalizedText)
 }
 
+const BING_HOST = "https://cn.bing.com"
+const BING_DICT_LINK =
+  `${BING_HOST}/dict/clientsearch?mkt=zh-CN&setLang=zh&form=BDVEHC&ClientVer=BDDTV3.5.1.4320&q=`
+const BING_SENTENCE_LIMIT = 4
+
+async function lookupWithBing(text) {
+  const normalizedText = String(text || "").replace(/\s+/g, " ").trim()
+  const doc = await requestDirtyDocument(
+    BING_DICT_LINK + encodeURIComponent(normalizedText)
+  )
+  return parseBingDocument(doc, normalizedText)
+}
+
+const CAMBRIDGE_HOST = "https://dictionary.cambridge.org"
+
+function getCambridgeSrcPage(text) {
+  const normalizedText = String(text || "").replace(/\s+/g, " ").trim()
+  if (!normalizedText) {
+    return `${CAMBRIDGE_HOST}/`
+  }
+
+  if (/[\p{Script=Han}]/u.test(normalizedText)) {
+    const locale = String(navigator.language || "").toLowerCase()
+    const preferTraditional = locale.includes("zh-tw") || locale.includes("zh-hk")
+    const path = preferTraditional
+      ? "zht/%E6%90%9C%E7%B4%A2/direct/?datasetsearch=english-chinese-traditional&q="
+      : "zhs/%E6%90%9C%E7%B4%A2/direct/?datasetsearch=english-chinese-simplified&q="
+    return (
+      `${CAMBRIDGE_HOST}/${path}` +
+      encodeURIComponent(normalizedText)
+    )
+  }
+
+  return (
+    `${CAMBRIDGE_HOST}/search/direct/?datasetsearch=english&q=` +
+    encodeURIComponent(normalizedText.split(/\s+/).join("-"))
+  )
+}
+
+async function lookupWithCambridge(text) {
+  const normalizedText = String(text || "").replace(/\s+/g, " ").trim()
+  const doc = await requestDirtyDocument(getCambridgeSrcPage(normalizedText))
+  return parseCambridgeDocument(doc, normalizedText)
+}
+
 function unavailableResult(text) {
   return Promise.resolve({
     state: "unavailable",
@@ -1747,13 +2221,28 @@ function renderSpeakerMarkup(url) {
 
   return `
     <a
-      href="#"
+      href="${escapeAttr(url)}"
+      target="_blank"
+      rel="noopener noreferrer"
       class="saladict-Speaker"
       data-audio-url="${escapeAttr(url)}"
       title="播放发音"
       aria-label="播放发音"
     ></a>
   `
+}
+
+function normalizeSpeakerHref(href) {
+  const normalized = String(href || "").trim()
+  if (!normalized || normalized === "#") {
+    return ""
+  }
+
+  if (!/^https?:\/\//i.test(normalized)) {
+    return ""
+  }
+
+  return normalized
 }
 
 function renderStarRateMarkup(
@@ -2101,6 +2590,538 @@ function parseYoudaoCollinsDocument(doc, fallbackTitle) {
   }
 }
 
+function parseBingDocument(doc, fallbackTitle) {
+  if (doc.querySelector(".client_def_hd_hd")) {
+    const lexResult = parseBingLexResult(doc)
+    if (lexResult) {
+      return {
+        state: "ok",
+        kind: "bing",
+        data: lexResult.data,
+        text: "",
+        meta: "",
+        audio: normalizeAudioMap(lexResult.audio),
+      }
+    }
+  }
+
+  if (doc.querySelector(".client_trans_head")) {
+    const machineResult = parseBingMachineResult(doc)
+    if (machineResult) {
+      return {
+        state: "ok",
+        kind: "bing",
+        data: machineResult,
+        text: "",
+        meta: "",
+      }
+    }
+  }
+
+  if (doc.querySelector(".client_do_you_mean_title_bar")) {
+    const relatedResult = parseBingRelatedResult(doc)
+    if (relatedResult) {
+      return {
+        state: "ok",
+        kind: "bing",
+        data: relatedResult,
+        text: "",
+        meta: "",
+      }
+    }
+  }
+
+  return unavailableResult(`必应词典没有找到 “${fallbackTitle}” 的结果。`)
+}
+
+function parseBingLexResult(doc) {
+  const title = getNodeText(doc.querySelector(".client_def_hd_hd"))
+  const data = {
+    type: "lex",
+    title,
+  }
+  const audio = {}
+
+  const phsym = Array.from(doc.querySelectorAll(".client_def_hd_pn_list"))
+    .map(node => {
+      const lang = getNodeText(node.querySelector(".client_def_hd_pn"))
+      const pron = extractBingAudioUrl(node)
+      if (!lang && !pron) {
+        return null
+      }
+      if (!audio.us && /us|美/i.test(lang)) {
+        audio.us = pron
+      } else if (!audio.uk && /uk|英/i.test(lang)) {
+        audio.uk = pron
+      }
+      return { lang, pron }
+    })
+    .filter(Boolean)
+  if (phsym.length > 0) {
+    data.phsym = phsym
+  }
+
+  const defs = Array.from(
+    doc.querySelectorAll(".client_def_container .client_def_bar")
+  )
+    .map(node => {
+      const pos = getNodeText(node.querySelector(".client_def_title_bar"))
+      const def = getNodeText(node.querySelector(".client_def_list"))
+      if (!pos && !def) {
+        return null
+      }
+      return { pos, def }
+    })
+    .filter(Boolean)
+  if (defs.length > 0) {
+    data.cdef = defs
+  }
+
+  const detailedSenseGroups = parseBingDetailedSenseGroups(doc)
+  if (detailedSenseGroups.length > 0) {
+    data.senses = detailedSenseGroups
+  }
+
+  const infs = Array.from(doc.querySelectorAll(".client_word_change_word"))
+    .map(node => getNodeText(node))
+    .filter(Boolean)
+  if (infs.length > 0) {
+    data.infs = infs
+  }
+
+  const sentenceNodes = Array.from(doc.querySelectorAll(".client_sentence_list")).slice(
+    0,
+    BING_SENTENCE_LIMIT
+  )
+  const sentences = sentenceNodes
+    .map(node => parseBingSentenceNode(node))
+    .filter(Boolean)
+  if (sentences.length > 0) {
+    data.sentences = sentences
+  }
+
+  if (!data.phsym && !data.cdef && !data.senses && !data.infs && !data.sentences) {
+    return null
+  }
+
+  return { data, audio }
+}
+
+function parseBingDetailedSenseGroups(doc) {
+  const groupNodes = Array.from(doc.querySelectorAll("#clientnlid .defeachseg"))
+
+  return groupNodes
+    .map(groupNode => {
+      const pos = getNodeText(groupNode.querySelector(".defpos"))
+      const senseNodes = Array.from(
+        groupNode.querySelectorAll(".defsegcon > .deflistseg > .deflistitem")
+      )
+
+      const senses = senseNodes
+        .map(item => {
+          const num = getNodeText(item.querySelector(".defitemtitlebar .defnum"))
+          const titleCn = getNodeText(
+            item.querySelector(".defitemtitlebar .itemname")
+          )
+          const titleEn = getNodeText(
+            item.querySelector(".defitemtitlebar .itmeval")
+          )
+          const defGra = getNodeText(item.querySelector(".defitembar .defgra"))
+          const defCn = getNodeText(item.querySelector(".defitembar .itemname"))
+          const defEn = getNodeText(item.querySelector(".defitembar .itmeval"))
+          const exampleItems = Array.from(item.querySelectorAll(".exambar .examlistitem"))
+            .map(example => ({
+              en: getNodeText(example.querySelector(".examitmeval")),
+              cn: getNodeText(example.querySelector(".examitemname")),
+            }))
+            .filter(example => example.en || example.cn)
+
+          if (
+            !num &&
+            !titleCn &&
+            !titleEn &&
+            !defGra &&
+            !defCn &&
+            !defEn &&
+            exampleItems.length <= 0
+          ) {
+            return null
+          }
+
+          return {
+            num,
+            titleCn,
+            titleEn,
+            defGra,
+            defCn,
+            defEn,
+            examples: exampleItems,
+          }
+        })
+        .filter(Boolean)
+
+      if (!pos && senses.length <= 0) {
+        return null
+      }
+
+      return {
+        pos,
+        senses,
+      }
+    })
+    .filter(Boolean)
+}
+
+function parseBingSentenceNode(node) {
+  const cloned = node.cloneNode(true)
+  cloned.querySelectorAll(".client_sen_en_word").forEach(word => {
+    word.replaceWith(document.createTextNode(getNodeText(word)))
+  })
+  cloned.querySelectorAll(".client_sen_cn_word").forEach(word => {
+    word.replaceWith(document.createTextNode(getNodeText(word)))
+  })
+  cloned.querySelectorAll(".client_sentence_search").forEach(word => {
+    const span = document.createElement("span")
+    span.className = "dictBing-SentenceItem_HL"
+    span.textContent = getNodeText(word)
+    word.replaceWith(span)
+  })
+
+  const enHtml = getSanitizedInnerHtmlWithHost(
+    cloned.querySelector(".client_sen_en"),
+    BING_HOST
+  )
+  const chsHtml = getSanitizedInnerHtmlWithHost(
+    cloned.querySelector(".client_sen_cn"),
+    BING_HOST
+  )
+  const source = getNodeText(cloned.querySelector(".client_sentence_list_link"))
+  const mp3 = extractBingAudioUrl(cloned)
+
+  if (!enHtml && !chsHtml && !source && !mp3) {
+    return null
+  }
+
+  return {
+    en: enHtml,
+    chs: chsHtml,
+    source,
+    mp3,
+  }
+}
+
+function parseBingMachineResult(doc) {
+  const mt = getNodeText(doc.querySelector(".client_sen_cn"))
+  if (!mt) {
+    return null
+  }
+
+  return {
+    type: "machine",
+    mt,
+  }
+}
+
+function parseBingRelatedResult(doc) {
+  const defs = []
+
+  doc.querySelectorAll(".client_do_you_mean_area").forEach(area => {
+    const listNodes = area.querySelectorAll(".client_do_you_mean_list")
+    if (listNodes.length <= 0) {
+      return
+    }
+
+    defs.push({
+      title: getNodeText(area.querySelector(".client_do_you_mean_title")),
+      meanings: Array.from(listNodes)
+        .map(listNode => {
+          const word = getNodeText(
+            listNode.querySelector(".client_do_you_mean_list_word")
+          )
+          if (!word) {
+            return null
+          }
+
+          return {
+            href: `${BING_HOST}/dict/search?q=${encodeURIComponent(word)}`,
+            word,
+            def: getNodeText(
+              listNode.querySelector(".client_do_you_mean_list_def")
+            ),
+          }
+        })
+        .filter(Boolean),
+    })
+  })
+
+  if (defs.length <= 0) {
+    return null
+  }
+
+  return {
+    type: "related",
+    title: getNodeText(doc.querySelector(".client_do_you_mean_title_bar")),
+    defs,
+  }
+}
+
+function getBingSenseExampleKey(title, pos, groupIndex, senseIndex, item) {
+  return [
+    "bing",
+    String(lastRenderedText || title || "").trim().toLowerCase(),
+    String(pos || "").trim().toLowerCase(),
+    String(groupIndex),
+    String(senseIndex),
+    String(item?.num || ""),
+    String(item?.titleCn || "").trim(),
+  ].join("::")
+}
+
+function extractBingAudioUrl(root) {
+  if (!root) {
+    return ""
+  }
+
+  const audioNode =
+    root.matches?.(".client_aud_o") ? root : root.querySelector(".client_aud_o")
+  if (!audioNode) {
+    return ""
+  }
+
+  const candidates = [
+    audioNode.getAttribute("data-pronunciation"),
+    audioNode.getAttribute("data-mp3link"),
+    audioNode.getAttribute("data-src"),
+    audioNode.getAttribute("data-url"),
+  ].filter(Boolean)
+
+  for (const url of candidates) {
+    const normalized = absolutizeUrl(url, BING_HOST)
+    if (normalized) {
+      return normalized
+    }
+  }
+
+  const onclick = String(audioNode.getAttribute("onclick") || "")
+  const absoluteMp3 = onclick.match(/https?:\/\/[^"')\s]+\.mp3(?:\?[^"')\s]*)?/i)
+  if (absoluteMp3?.[0]) {
+    return absoluteMp3[0]
+  }
+  const relativeMp3 = onclick.match(/\/dict\/mediamp3\?[^"')\s]+/i)
+  if (relativeMp3?.[0]) {
+    return absolutizeUrl(relativeMp3[0], BING_HOST)
+  }
+
+  return ""
+}
+
+function parseCambridgeDocument(doc, fallbackTitle) {
+  const audio = {}
+  const entries = []
+  const catalog = []
+
+  doc.querySelectorAll(".entry-body__el").forEach(($entry, index) => {
+    if (!getNodeText($entry.querySelector(".headword"))) {
+      return
+    }
+
+    const clonedEntry = $entry.cloneNode(true)
+    const $posHeader = clonedEntry.querySelector(".pos-header")
+    if ($posHeader) {
+      collectCambridgePronunciation($posHeader, audio)
+      removeFirstMatchedNode($posHeader, ".share")
+    }
+
+    sanitizeCambridgeEntryNode(clonedEntry)
+    const html = getSanitizedInnerHtmlWithHost(clonedEntry, CAMBRIDGE_HOST)
+    if (!html) {
+      return
+    }
+
+    const entryId = `d-cambridge-entry${index}`
+    entries.push({
+      id: entryId,
+      html,
+    })
+
+    const catalogLabel =
+      "#" +
+      getNodeText(clonedEntry.querySelector(".di-title")) +
+      " " +
+      getNodeText(clonedEntry.querySelector(".posgram"))
+    catalog.push({
+      key: `#${index}`,
+      value: entryId,
+      label: catalogLabel.trim(),
+    })
+  })
+
+  if (entries.length <= 0) {
+    const $idiom = doc.querySelector(".idiom-block")
+    if ($idiom) {
+      const clonedIdiom = $idiom.cloneNode(true)
+      removeFirstMatchedNode(clonedIdiom, ".bb.hax")
+      sanitizeCambridgeEntryNode(clonedIdiom)
+
+      const html = getSanitizedInnerHtmlWithHost(clonedIdiom, CAMBRIDGE_HOST)
+      if (html) {
+        entries.push({
+          id: "d-cambridge-entry-idiom",
+          html,
+        })
+      }
+    }
+  }
+
+  if (entries.length <= 0) {
+    const canonicalHref = doc
+      .querySelector('link[rel="canonical"]')
+      ?.getAttribute("href")
+    const relatedNode = doc.querySelector(".hfl-s.lt2b.lmt-10.lmb-25.lp-s_r-20")
+    if (
+      relatedNode &&
+      /dictionary\.cambridge\.org\/([^/]+\/)?spellcheck\//.test(
+        String(canonicalHref || "")
+      )
+    ) {
+      const clonedRelated = relatedNode.cloneNode(true)
+      sanitizeCambridgeRelatedNode(clonedRelated)
+      const html = getSanitizedInnerHtmlWithHost(clonedRelated, CAMBRIDGE_HOST)
+      if (html) {
+        entries.push({
+          id: "d-cambridge-entry-related",
+          html,
+          isRelated: true,
+        })
+      }
+    }
+  }
+
+  if (entries.length <= 0) {
+    return unavailableResult(`剑桥词典没有找到 “${fallbackTitle}” 的结果。`)
+  }
+
+  return {
+    state: "ok",
+    kind: "cambridge",
+    data: {
+      entries,
+      audio: normalizeAudioMap(audio),
+      catalog,
+    },
+    text: "",
+    meta: "",
+    audio: normalizeAudioMap(audio),
+  }
+}
+
+function sanitizeCambridgeEntryNode(root) {
+  if (!root) {
+    return root
+  }
+
+  root.querySelectorAll(".tb.fs10.hvm").forEach(node => {
+    const text = getNodeText(node)
+    if (!text || /add to word list/i.test(text)) {
+      node.remove()
+    }
+  })
+
+  root.querySelectorAll(".daccord_h").forEach(node => {
+    node.parentElement?.classList.add("amp-accordion")
+  })
+
+  root.querySelectorAll("amp-img").forEach(ampImg => {
+    const img = document.createElement("img")
+    const src = ampImg.getAttribute("src")
+    const normalizedSrc = absolutizeUrl(src, CAMBRIDGE_HOST)
+    img.setAttribute("src", normalizedSrc || "")
+    for (const attr of ["width", "height", "title"]) {
+      const value = ampImg.getAttribute(attr)
+      if (value) {
+        img.setAttribute(attr, value)
+      }
+    }
+    ampImg.replaceWith(img)
+  })
+
+  root.querySelectorAll("amp-audio").forEach(ampAudio => {
+    const source = ampAudio.querySelector("source")
+    const src = source?.getAttribute("src")
+    const audioUrl = absolutizeUrl(src, CAMBRIDGE_HOST)
+    if (audioUrl) {
+      const speaker = createSpeakerElement(audioUrl)
+      ampAudio.replaceWith(speaker)
+      return
+    }
+    ampAudio.remove()
+  })
+
+  root.querySelectorAll("a.had").forEach(anchor => {
+    anchor.setAttribute("target", "_blank")
+    anchor.setAttribute("rel", "nofollow noopener noreferrer")
+  })
+
+  return root
+}
+
+function sanitizeCambridgeRelatedNode(root) {
+  if (!root) {
+    return root
+  }
+
+  root.querySelectorAll(".tb.fs10.hvm").forEach(node => {
+    const text = getNodeText(node)
+    if (!text || /add to word list/i.test(text)) {
+      node.remove()
+    }
+  })
+
+  return root
+}
+
+function collectCambridgePronunciation(posHeader, audio) {
+  posHeader.querySelectorAll(".dpron-i").forEach(pron => {
+    const daud = pron.querySelector(".daud")
+    const source = daud?.querySelector('source[type="audio/mpeg"]')
+    const src = source?.getAttribute("src")
+    const audioUrl = absolutizeUrl(src, CAMBRIDGE_HOST)
+    if (!audioUrl) {
+      return
+    }
+
+    daud?.replaceWith(createSpeakerElement(audioUrl))
+
+    if (!audio.uk && pron.classList.contains("uk")) {
+      audio.uk = audioUrl
+    }
+
+    if (!audio.us && pron.classList.contains("us")) {
+      audio.us = audioUrl
+    }
+  })
+}
+
+function createSpeakerElement(audioUrl) {
+  const template = document.createElement("template")
+  template.innerHTML = renderSpeakerMarkup(audioUrl).trim()
+  return template.content.firstElementChild || document.createElement("span")
+}
+
+function removeFirstMatchedNode(parent, selector) {
+  parent?.querySelector(selector)?.remove()
+}
+
+function getSanitizedInnerHtmlWithHost(node, host) {
+  if (!node) {
+    return ""
+  }
+
+  const clone = node.cloneNode(true)
+  sanitizeRichContentNode(clone, host)
+  return String(clone.innerHTML || "").trim()
+}
+
 function getSanitizedInnerHtml(parent, selector) {
   const sourceNode = selector ? parent.querySelector(selector) : parent
   if (!sourceNode) {
@@ -2210,34 +3231,15 @@ function cloneSerializable(value) {
 }
 
 function requestDirtyDocument(url) {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest()
-    xhr.open("GET", url, true)
-    xhr.responseType = "document"
-    xhr.withCredentials = false
-
-    xhr.onload = () => {
-      if (xhr.status < 200 || xhr.status >= 300) {
-        reject(new Error(`HTTP ${xhr.status}`))
-        return
-      }
-
-      const responseDoc = xhr.responseXML || xhr.response
-      if (responseDoc && typeof responseDoc.querySelector === "function") {
-        resolve(responseDoc)
-        return
-      }
-
-      resolve(
-        new DOMParser().parseFromString(xhr.responseText || "", "text/html")
-      )
+  return fetch(url, {
+    credentials: "omit",
+  }).then(async response => {
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`)
     }
 
-    xhr.onerror = () => {
-      reject(new Error("NETWORK_ERROR"))
-    }
-
-    xhr.send()
+    const html = await response.text()
+    return new DOMParser().parseFromString(html, "text/html")
   })
 }
 

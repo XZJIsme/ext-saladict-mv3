@@ -22,3 +22,4 @@
 - [x] 增加多主题设置（WindovvViista、Mojavv）。
 - [ ] 增加其它主题（Snow、Nori、Ocean、Violet、Bacon、Coffee、Sakura）。
 - [ ] Dark 模式（Midnight、Blackcoffee）。
+- [ ] 增加一个按钮，按下去后启用持续划词模式；在该模式下，用户划词后会自动翻译。
