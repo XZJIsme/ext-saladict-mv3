@@ -1817,6 +1817,334 @@ body[data-theme="mojavv"] .sentence-input:focus {
     0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
+.result-card[data-source-id="longman"] {
+  border-color: #f1d7c5;
+  background: #ffffff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.96),
+    0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.result-card[data-source-id="longman"] .result-title {
+  color: #18324b;
+}
+
+.result-card[data-source-id="longman"] .result-link {
+  color: #f9690e;
+}
+
+.result-card[data-source-id="longman"] .result-link:hover {
+  color: #f9690e;
+}
+
+.result-card[data-source-id="longman"] .result-body {
+  color: #1f2328;
+  font-family: arial, helvetica, sans-serif;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Wordfams .asset_intro {
+  display: block;
+  font-weight: bold;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Wordfams .pos {
+  color: #16a085;
+  font-weight: bold;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Wordfams .pos::before {
+  content: "";
+  display: block;
+  border-left: 1px solid red;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Wordfams .pos + * {
+  margin-left: 0.5em;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Dict {
+  margin-bottom: 1.2em;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-HeaderContainer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Title,
+.result-card[data-source-id="longman"] .dictLongman-Level {
+  font-size: 1em;
+  margin-right: 0.6em;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Title {
+  margin: 0 0.6em 0 0;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Title_HYPHENATION {
+  font-size: 1.5em;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Title_HWD {
+  display: none;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Title_HOMNUM {
+  font-size: 0.5em;
+  vertical-align: super;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Level_Rate {
+  display: inline-flex;
+  align-items: center;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-FREQ {
+  margin-right: 0.6em;
+  padding: 1px 0.5em 0;
+  color: #f9690e;
+  line-height: 1.5;
+  vertical-align: middle;
+  border: 1px solid #f9690e;
+  border-radius: 3px;
+  user-select: none;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Phsym {
+  margin: 0 0.5em;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Pron,
+.result-card[data-source-id="longman"] .dictLongman-Topic {
+  margin-right: 0.5em;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Entry {
+  font-family: arial, helvetica, sans-serif;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Entry .SubEntry,
+.result-card[data-source-id="longman"] .dictLongman-Entry .EXAMPLE,
+.result-card[data-source-id="longman"] .dictLongman-Entry .Sense,
+.result-card[data-source-id="longman"] .dictLongman-Entry .newline,
+.result-card[data-source-id="longman"] .dictLongman-Entry .ColloExa,
+.result-card[data-source-id="longman"] .dictLongman-Entry .GramExa {
+  display: block;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Entry .ACTIV,
+.result-card[data-source-id="longman"] .dictLongman-Entry .HWD,
+.result-card[data-source-id="longman"] .dictLongman-Entry .FIELD,
+.result-card[data-source-id="longman"] .dictLongman-Entry .FIELDXX {
+  display: none;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Entry .HYPHENATION {
+  font-size: 160%;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Sense {
+  position: relative;
+  padding-left: 1.4em;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Entry .POS,
+.result-card[data-source-id="longman"] .dictLongman-Entry .SYN,
+.result-card[data-source-id="longman"] .dictLongman-Entry .sensenum,
+.result-card[data-source-id="longman"] .dictLongman-Entry .GRAM,
+.result-card[data-source-id="longman"] .dictLongman-Entry .EXPR,
+.result-card[data-source-id="longman"] .dictLongman-Entry .LEXUNIT,
+.result-card[data-source-id="longman"] .dictLongman-Entry .COLLOINEXA,
+.result-card[data-source-id="longman"] .dictLongman-Entry .HYPHENATION,
+.result-card[data-source-id="longman"] .dictLongman-Entry .PROPFORMPREP {
+  font-weight: bold;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Entry .GEO {
+  font-weight: normal;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Entry .COLLOINEXA,
+.result-card[data-source-id="longman"] .dictLongman-Entry .GEO {
+  font-style: italic;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Entry .COLLO {
+  font-weight: bold;
+  margin-left: 10px;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Entry .GRAM {
+  margin-right: 0.25em;
+  color: #16a085;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Entry .GEO,
+.result-card[data-source-id="longman"] .dictLongman-Entry .GLOSS {
+  color: #999;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Entry .sensenum {
+  position: absolute;
+  left: 0;
+  text-align: right;
+  width: 1em;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Entry .Subsense {
+  display: block;
+  padding-left: 1.4em;
+  position: relative;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Entry .EXAMPLE {
+  margin-bottom: 0.4em;
+  padding-left: 0.8em;
+  color: #5f6772;
+  position: relative;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Entry .EXAMPLE::before {
+  content: "•";
+  margin-right: 0.5em;
+  user-select: none;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Entry .EXAMPLE.withSpeaker::before {
+  display: none;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Entry .neutral {
+  color: #333;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  background: none;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Entry .SYN .synopp,
+.result-card[data-source-id="longman"] .dictLongman-Entry .SIGNPOST {
+  color: #fff;
+  font-size: 80%;
+  font-weight: bold;
+  background: #ff9552;
+  padding: 2px 0.4em 1px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Entry .OPP {
+  font-weight: bold;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Entry .OPP .synopp {
+  color: #fff;
+  border-color: #f1d600;
+  background-color: #f1d600;
+  padding: 0 0.4em;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Entry a:link,
+.result-card[data-source-id="longman"] .dictLongman-Entry a:visited,
+.result-card[data-source-id="longman"] .dictLongman-Entry a:hover,
+.result-card[data-source-id="longman"] .dictLongman-Entry a:active {
+  text-decoration: none;
+  color: #f9690e;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Entry .SubEntry {
+  color: #999;
+  margin-left: 0.8em;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Entry .SubEntry:last-child {
+  margin-bottom: 0.4em;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Entry .SubEntry a:link,
+.result-card[data-source-id="longman"] .dictLongman-Entry .SubEntry a:visited,
+.result-card[data-source-id="longman"] .dictLongman-Entry .SubEntry a:hover,
+.result-card[data-source-id="longman"] .dictLongman-Entry .SubEntry a:active {
+  text-decoration: none;
+  color: #999;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Box {
+  position: relative;
+  margin: 1.4em 0.8em 0.6em 0.4em;
+  padding: 0.8em 0.5em 0.5em;
+  border: 1px solid #f9690e;
+  border-radius: 3px;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Box .heading {
+  position: absolute;
+  top: 0;
+  left: 0.8em;
+  transform: translateY(-50%);
+  padding: 0 0.4em;
+  font-size: 1.3em;
+  background: #ffffff;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Box .CROSS,
+.result-card[data-source-id="longman"] .dictLongman-Box .dont_say,
+.result-card[data-source-id="longman"] .dictLongman-Box .BADEXA {
+  color: #f9690e;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Box .CROSS {
+  padding-left: 0.4em;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Box .CROSS .neutral {
+  color: #f9690e;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Box .BADEXA {
+  padding-right: 0.4em;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Examples_Title {
+  font-weight: normal;
+  font-size: 1.3em;
+  margin: 0 0 0.4em;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Examples {
+  margin-bottom: 0.6em;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Examples .title {
+  display: block;
+  font-weight: bold;
+  font-size: 1.1em;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Examples .exa {
+  display: block;
+  position: relative;
+  margin-left: 0.8em;
+  padding-left: 0.8em;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Examples .neutral {
+  position: absolute;
+  left: 0;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Related {
+  padding-left: 1.2em;
+}
+
+.result-card[data-source-id="longman"] .dictLongman-Related a {
+  margin-left: 2em;
+  color: #16a085;
+}
+
 #d-cambridge-entry-related ul {
   padding-left: 1em;
 }

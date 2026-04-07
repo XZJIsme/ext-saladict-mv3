@@ -246,6 +246,12 @@ const DICTIONARY_SOURCE_CONFIGS = [
     href: text => getCambridgeSrcPage(text),
     lookup: lookupWithCambridge,
   },
+  {
+    id: "longman",
+    label: "朗文词典",
+    href: text => getLongmanSrcPage(text),
+    lookup: lookupWithLongman,
+  },
 ]
 
 document.querySelector(".settings-btn")?.addEventListener("click", () => {
@@ -931,6 +937,14 @@ function renderResultBody(source, result) {
     `
   }
 
+  if (result.kind === "longman" && result.data) {
+    return `
+      <div class="result-body result-body-rich">
+        ${renderLongmanDictionaryBody(result.data)}
+      </div>
+    `
+  }
+
   if (result.kind === "bing" && result.data) {
     return `
       <div class="result-body result-body-rich">
@@ -1278,6 +1292,129 @@ function renderBingDictionaryBody(data) {
       </ol>
     `
       : ""}
+  `
+}
+
+function renderLongmanDictionaryBody(data) {
+  if (!data || typeof data !== "object") {
+    return ""
+  }
+
+  if (data.type === "related") {
+    return `
+      <p>Did you mean:</p>
+      <ul class="dictLongman-Related">${data.list}</ul>
+    `
+  }
+
+  if (data.type !== "lex") {
+    return ""
+  }
+
+  const dicts = data.bussinessFirst
+    ? ["bussiness", "contemporary"]
+    : ["contemporary", "bussiness"]
+
+  return `
+    ${data.wordfams
+      ? `<div class="dictLongman-Wordfams">${data.wordfams}</div>`
+      : ""}
+
+    ${dicts
+      .map(dict =>
+        Array.isArray(data[dict]) && data[dict].length > 0
+          ? `
+            <div class="dictLongman-Dict">
+              ${data[dict]
+                .map(entry => renderLongmanEntry(entry))
+                .join("")}
+            </div>
+          `
+          : ""
+      )
+      .join("")}
+  `
+}
+
+function renderLongmanEntry(entry) {
+  if (!entry || typeof entry !== "object") {
+    return ""
+  }
+
+  const prons = Array.isArray(entry.prons) ? entry.prons : []
+  const senses = Array.isArray(entry.senses) ? entry.senses : []
+  const examples = Array.isArray(entry.examples) ? entry.examples : []
+
+  return `
+    <section class="dictLongman-Entry">
+      <header>
+        <div class="dictLongman-HeaderContainer">
+          <h1 class="dictLongman-Title">
+            <span class="dictLongman-Title_HWD">${escapeHtml(entry.title?.HWD || "")}</span>
+            <span class="dictLongman-Title_HYPHENATION">${escapeHtml(entry.title?.HYPHENATION || "")}</span>
+            <span class="dictLongman-Title_HOMNUM">${escapeHtml(entry.title?.HOMNUM || "")}</span>
+          </h1>
+          ${entry.level
+            ? `<span title="${escapeAttr(entry.level.title || "")}" class="dictLongman-Level">${renderStarRateMarkup(entry.level.rate, "dictLongman-Level_Rate", "1em", "span", 3)}</span>`
+            : ""}
+          ${Array.isArray(entry.freq)
+            ? entry.freq
+                .map(freq => `
+                  <span
+                    class="dictLongman-FREQ"
+                    title="${escapeAttr(freq.title || "")}"
+                  >${escapeHtml(freq.rank || "")}</span>
+                `)
+                .join("")
+            : ""}
+        </div>
+        <div class="dictLongman-HeaderContainer">
+          ${entry.pos ? `<span class="dictLongman-Pos">${escapeHtml(entry.pos)}</span>` : ""}
+          ${entry.phsym ? `<span class="dictLongman-Phsym">${escapeHtml(entry.phsym)}</span>` : ""}
+          ${prons
+            .map(pron => `
+              <span class="dictLongman-Pron">
+                ${escapeHtml(String(pron.lang || "").toUpperCase())}:
+                ${renderSpeakerMarkup(pron.pron || "")}
+              </span>
+            `)
+            .join("")}
+          ${entry.topic
+            ? `
+              <span class="dictLongman-Topic">
+                Topic:
+                <a href="${escapeAttr(entry.topic.href || "#")}" rel="nofollow noopener noreferrer">${escapeHtml(entry.topic.title || "")}</a>
+              </span>
+            `
+            : ""}
+        </div>
+      </header>
+
+      ${senses
+        .map(sen => `<div class="dictLongman-Sense">${sen}</div>`)
+        .join("")}
+
+      ${entry.collocations
+        ? `<div class="dictLongman-Box">${entry.collocations}</div>`
+        : ""}
+
+      ${entry.grammar
+        ? `<div class="dictLongman-Box">${entry.grammar}</div>`
+        : ""}
+
+      ${entry.thesaurus
+        ? `<div class="dictLongman-Box">${entry.thesaurus}</div>`
+        : ""}
+
+      ${examples.length > 0
+        ? `
+          <h2 class="dictLongman-Examples_Title">Examples from the Corpus</h2>
+          ${examples
+            .map(exa => `<div class="dictLongman-Examples">${exa}</div>`)
+            .join("")}
+        `
+        : ""}
+    </section>
   `
 }
 
@@ -2020,12 +2157,289 @@ async function lookupWithCambridge(text) {
   return parseCambridgeDocument(doc, normalizedText)
 }
 
+const LONGMAN_HOST = "https://www.ldoceonline.com"
+
+function getLongmanSrcPage(text) {
+  const normalizedText = String(text || "").replace(/\s+/g, " ").trim()
+  if (!normalizedText) {
+    return `${LONGMAN_HOST}/`
+  }
+
+  const slug = normalizedText
+    .toLocaleLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+
+  return `${LONGMAN_HOST}/dictionary/${slug || encodeURIComponent(normalizedText)}`
+}
+
+async function lookupWithLongman(text) {
+  const normalizedText = String(text || "").replace(/\s+/g, " ").trim()
+  const doc = await requestDirtyDocument(getLongmanSrcPage(normalizedText))
+  return parseLongmanDocument(doc, normalizedText)
+}
+
 function unavailableResult(text) {
   return Promise.resolve({
     state: "unavailable",
     text,
     meta: "",
   })
+}
+
+function parseLongmanDocument(doc, fallbackTitle) {
+  if (doc.querySelector(".dictentry")) {
+    const lexResult = parseLongmanLexDocument(doc)
+    if (lexResult) {
+      return {
+        state: "ok",
+        kind: "longman",
+        data: lexResult.data,
+        text: "",
+        meta: "",
+        audio: normalizeAudioMap(lexResult.audio),
+      }
+    }
+  }
+
+  const relatedNode = doc.querySelector(".didyoumean")
+  if (relatedNode) {
+    const relatedResult = parseLongmanRelatedDocument(relatedNode)
+    if (relatedResult) {
+      return {
+        state: "ok",
+        kind: "longman",
+        data: relatedResult,
+        text: "",
+        meta: "",
+      }
+    }
+  }
+
+  return unavailableResult(`朗文词典没有找到 “${fallbackTitle}” 的结果。`)
+}
+
+function parseLongmanLexDocument(doc) {
+  const audio = {}
+  const result = {
+    type: "lex",
+    bussinessFirst: true,
+    contemporary: [],
+    bussiness: [],
+  }
+
+  const wordfamsNode = doc.querySelector(".wordfams")
+  if (wordfamsNode) {
+    const wordfams = getLongmanSanitizedInnerHtml(wordfamsNode)
+    if (wordfams) {
+      result.wordfams = wordfams
+    }
+  }
+
+  const dictentries = Array.from(doc.querySelectorAll(".dictentry"))
+  let currentDict = ""
+
+  dictentries.forEach($entry => {
+    const $intro = $entry.querySelector(".dictionary_intro")
+    if ($intro) {
+      const dict = String($intro.textContent || "")
+      if (dict.includes("Contemporary")) {
+        currentDict = "contemporary"
+      } else if (dict.includes("Business")) {
+        currentDict = "bussiness"
+      } else {
+        currentDict = ""
+      }
+    }
+
+    if (!currentDict) {
+      return
+    }
+
+    const entry = parseLongmanEntry($entry, audio)
+    if (entry) {
+      result[currentDict].push(entry)
+    }
+  })
+
+  if (result.contemporary.length <= 0 && result.bussiness.length <= 0) {
+    return null
+  }
+
+  return {
+    data: result,
+    audio,
+  }
+}
+
+function parseLongmanEntry($entry, audio) {
+  const $head = $entry.querySelector(".Head")
+  if (!$head) {
+    return null
+  }
+
+  const entry = {
+    title: {
+      HWD: "",
+      HYPHENATION: "",
+      HOMNUM: "",
+    },
+    senses: [],
+    prons: [],
+  }
+
+  const $topic = $entry.querySelector("a.topic")
+  if ($topic) {
+    const href = absolutizeUrl($topic.getAttribute("href"), LONGMAN_HOST)
+    if (href) {
+      entry.topic = {
+        title: getNodeText($topic),
+        href,
+      }
+    }
+  }
+
+  entry.title.HWD = getNodeText($head.querySelector(".HWD"))
+  entry.title.HYPHENATION = getNodeText($head.querySelector(".HYPHENATION"))
+  entry.title.HOMNUM = getNodeText($head.querySelector(".HOMNUM"))
+  entry.phsym = getNodeText($head.querySelector(".PronCodes"))
+
+  const $level = $head.querySelector(".LEVEL")
+  if ($level) {
+    entry.level = {
+      rate: ($level.textContent?.match(/●/g) || []).length,
+      title: $level.getAttribute("title") || "",
+    }
+  }
+
+  entry.freq = Array.from($head.querySelectorAll(".FREQ"))
+    .map($el => ({
+      title: $el.getAttribute("title") || "",
+      rank: getNodeText($el),
+    }))
+    .filter(item => item.rank)
+
+  entry.pos = getNodeText($head.querySelector(".POS"))
+
+  $head.querySelectorAll(".speaker").forEach($speaker => {
+    const pron = extractLongmanAudioUrl($speaker)
+    if (!pron) {
+      return
+    }
+
+    const title = String($speaker.getAttribute("title") || "")
+    let lang = "us"
+    if (/british|brefile|uk/i.test(title) || $speaker.classList.contains("brefile")) {
+      lang = "uk"
+    } else if (/american|amefile|us/i.test(title) || $speaker.classList.contains("amefile")) {
+      lang = "us"
+    }
+
+    audio[lang] = pron
+    entry.prons.push({ lang, pron })
+  })
+
+  entry.senses = Array.from($entry.querySelectorAll(".Sense"))
+    .map($sense => getLongmanSanitizedInnerHtml($sense))
+    .filter(Boolean)
+
+  entry.collocations = getLongmanSanitizedInnerHtml($entry.querySelector(".ColloBox"))
+  entry.grammar = getLongmanSanitizedInnerHtml($entry.querySelector(".GramBox"))
+  entry.thesaurus = getLongmanSanitizedInnerHtml($entry.querySelector(".ThesBox"))
+  entry.examples = Array.from($entry.querySelectorAll(".exaGroup"))
+    .map($exa => getLongmanSanitizedInnerHtml($exa))
+    .filter(Boolean)
+
+  if (
+    !entry.title.HWD &&
+    !entry.title.HYPHENATION &&
+    !entry.title.HOMNUM &&
+    entry.senses.length <= 0 &&
+    !entry.collocations &&
+    !entry.grammar &&
+    !entry.thesaurus &&
+    entry.examples.length <= 0
+  ) {
+    return null
+  }
+
+  return entry
+}
+
+function parseLongmanRelatedDocument(root) {
+  const list = getLongmanSanitizedInnerHtml(root)
+  if (!list) {
+    return null
+  }
+
+  return {
+    type: "related",
+    list,
+  }
+}
+
+function getLongmanSanitizedInnerHtml(node) {
+  if (!node) {
+    return ""
+  }
+
+  const clone = node.cloneNode(true)
+  replaceLongmanSpeakerNodes(clone)
+  sanitizeRichContentNode(clone, LONGMAN_HOST)
+  return String(clone.innerHTML || "").trim()
+}
+
+function replaceLongmanSpeakerNodes(root) {
+  if (!root) {
+    return
+  }
+
+  root.querySelectorAll(".speaker.exafile").forEach(speaker => {
+    const audioUrl = extractLongmanAudioUrl(speaker)
+    if (!audioUrl) {
+      speaker.remove()
+      return
+    }
+
+    const parent = speaker.parentElement
+    speaker.replaceWith(createSpeakerElement(audioUrl))
+    if (parent?.classList.contains("EXAMPLE")) {
+      parent.classList.add("withSpeaker")
+    }
+  })
+}
+
+function extractLongmanAudioUrl(node) {
+  if (!node) {
+    return ""
+  }
+
+  const candidates = [
+    node.getAttribute("data-src-mp3"),
+    node.getAttribute("data-mp3"),
+    node.getAttribute("data-src"),
+    node.getAttribute("data-url"),
+  ].filter(Boolean)
+
+  for (const candidate of candidates) {
+    const normalized = absolutizeUrl(candidate, LONGMAN_HOST)
+    if (normalized) {
+      return normalized
+    }
+  }
+
+  const onclick = String(node.getAttribute("onclick") || "")
+  const absoluteMp3 = onclick.match(/https?:\/\/[^"')\s]+\.mp3(?:\?[^"')\s]*)?/i)
+  if (absoluteMp3?.[0]) {
+    return absoluteMp3[0]
+  }
+
+  const relativeMp3 = onclick.match(/\/[^"')\s]+\.mp3(?:\?[^"')\s]*)?/i)
+  if (relativeMp3?.[0]) {
+    return absolutizeUrl(relativeMp3[0], LONGMAN_HOST)
+  }
+
+  return ""
 }
 
 function decideTargetMode(text) {
@@ -2189,6 +2603,10 @@ function buildAudioActions(audio, result) {
     return ""
   }
 
+  if (result?.kind === "longman") {
+    return ""
+  }
+
   const normalized = normalizeAudioMap(audio)
   if (!normalized) {
     return ""
@@ -2249,9 +2667,11 @@ function renderStarRateMarkup(
   rate,
   className = "",
   size = "1em",
-  tagName = "span"
+  tagName = "span",
+  max = 5
 ) {
-  const safeRate = Math.max(0, Math.min(5, Number(rate) || 0))
+  const safeMax = Math.max(1, Number(max) || 5)
+  const safeRate = Math.max(0, Math.min(safeMax, Number(rate) || 0))
   if (!safeRate) {
     return ""
   }
@@ -2259,7 +2679,7 @@ function renderStarRateMarkup(
   const classAttr = className ? ` class="${className}"` : ""
   return `
     <${tagName}${classAttr}>
-      ${Array.from({ length: 5 }, (_, index) => `
+      ${Array.from({ length: safeMax }, (_, index) => `
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 426.67 426.67"

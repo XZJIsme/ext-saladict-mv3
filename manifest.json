@@ -19,7 +19,9 @@
     "https://fanyi.caiyunapp.com/*",
     "https://api.interpreter.caiyunai.com/*",
     "https://dict.youdao.com/*",
-    "https://cn.bing.com/*"
+    "https://cn.bing.com/*",
+    "https://www.ldoceonline.com/*",
+    "http://www.ldoceonline.com/*"
   ],
   "content_scripts": [
     {
